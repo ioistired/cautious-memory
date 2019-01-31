@@ -15,13 +15,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from discord.ext.commands import CommandError
+from discord.ext.commands import CommandError, UserInputError
 
 class CautiousMemoryError(CommandError):
 	"""Generic error with the bot. This can be used to catch all bot errors."""
 	pass
 
-class PageError(CautiousMemoryError):
+class PageError(CautiousMemoryError, UserInputError):
 	"""Abstract error while dealing with a page."""
 	pass
 
