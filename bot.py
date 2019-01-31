@@ -28,6 +28,7 @@ import asyncpg
 import discord
 from discord.ext import commands
 import json5
+import simple_help_formatter
 try:
 	import uvloop
 except ImportError:
@@ -54,6 +55,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			command_prefix=self.get_prefix_,
 			description=self.config.get('description'),
 			activity=self.activity,
+			formatter=simple_help_formatter.HelpFormatter(),
 			*args, **kwargs)
 
 	def process_config(self):
