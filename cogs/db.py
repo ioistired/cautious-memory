@@ -54,7 +54,10 @@ class Database:
 		- locked: whether to restrict editing this page to moderators
 		"""
 
-		async with self.bot.pool.acquire() as conn, conn.transaction():
+		async with self.bot.pool.acquire() as conn:
+			tr = conn.transaction()
+			await tr.start()
+
 			try:
 				page_id = await conn.fetchval("""
 					INSERT INTO pages (title, guild, latest_revision)
@@ -62,10 +65,16 @@ class Database:
 					RETURNING id
 				""", title, guild_id)
 			except asyncpg.UniqueViolationError:
-				await conn.rollback()
+				await tr.rollback()
 				raise errors.PageExistsError
 
-			await self._create_revision(conn, page_id, content, author_id)
+			try:
+				await self._create_revision(conn, page_id, content, author_id)
+			except:
+				await tr.rollback()
+				raise
+
+			await tr.commit()
 
 	async def revise_page(self, title, new_content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():
