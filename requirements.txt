@@ -1,0 +1,6 @@
+asyncpg
+ben_cogs
+discord.py @ git+https://github.com/Rapptz/discord.py@rewrite
+jishaku
+json5
+simple_help_formatter @ git+https://github.com/bmintz/simple-dpy-helpformatter
