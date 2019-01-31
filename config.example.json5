@@ -1,0 +1,14 @@
+{
+	prefix: 'cm/',
+
+	// parameter names documented here: https://magicstack.github.io/asyncpg/current/api/index.html#asyncpg.connection.connect
+	database: {},
+
+	tokens: {
+		discord: '',
+		stats: {
+			'discord.bots.gg': null,
+			'discordbots.org': null,
+			'lbots.org': null,
+		}
+}
