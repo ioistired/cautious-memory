@@ -21,8 +21,17 @@ import typing
 
 import discord
 from discord.ext import commands
+from jishaku.paginators import WrappedPaginator, PaginatorInterface
 
 import utils
+
+class WrappedPaginator(WrappedPaginator):
+	"""subclass of jishaku.paginators.WrappedPaginator
+	that does not cause PaginatorInterface to complain about max_size
+	"""
+	def __init__(self, *args, **kwargs):
+		max_size = kwargs.pop('max_size', 1991)  # constant found by binary search
+		super().__init__(*args, **kwargs, max_size=max_size)
 
 class Wiki:
 	def __init__(self, bot):
@@ -54,12 +63,11 @@ class Wiki:
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: commands.clean_content):
 		"""shows the revisions of a particular page"""
-		message = io.StringIO()
+		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
 		for revision in await self.db.get_page_revisions(ctx.guild.id, title):
-			message.write(self.revision_summary(ctx.guild, revision))
-			message.write('\n')
+			paginator.add_line(self.revision_summary(ctx.guild, revision))
 
-		await ctx.send(message.getvalue())
+		await PaginatorInterface(self.bot, paginator).send_to(ctx)
 
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
 	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):
@@ -70,20 +78,24 @@ class Wiki:
 		"""
 		old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
 
-		diff = utils.escape_code_blocks('\n'.join(difflib.unified_diff(
+		diff = difflib.unified_diff(
 			old.content.splitlines(),
 			new.content.splitlines(),
 			fromfile=self.revision_summary(ctx.guild, old),
 			tofile=self.revision_summary(ctx.guild, new),
-			lineterm='')))
+			lineterm='')
 
-		await ctx.send(utils.code_block(diff, language='diff'))
+		del old, new  # save a bit of memory while we paginate
+		paginator = WrappedPaginator(prefix='```diff\n')
+		for line in diff:
+			paginator.add_line(utils.escape_code_blocks(line))
+
+		await PaginatorInterface(self.bot, paginator).send_to(ctx)
 
 	@staticmethod
 	def revision_summary(guild, revision):
 		author = guild.get_member(revision.author) or f'unknown user with ID {revision.author}'
 		return f'#{revision.revision_id} Created by {author} at {utils.format_datetime(revision.revised)}'
-
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))

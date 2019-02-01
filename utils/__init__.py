@@ -30,7 +30,7 @@ def escape_code_blocks(s):
 	return s.replace('`', '`\N{zero width non-joiner}')
 
 def format_datetime(d) -> str:
-	return d.strftime("%I:%M:%S %p UTC")
+	return d.strftime("%Y-%m-%d %I:%M:%S %p UTC")
 
 def code_block(s, *, language=''):
 	return f'```{language}\n{s}\n```'
