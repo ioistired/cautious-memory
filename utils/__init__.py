@@ -25,3 +25,12 @@ attrdict = type('attrdict', (dict,), {
 def mangle(obj, attr):
 	cls = obj if isinstance(obj, type) else type(obj)
 	return '_' + cls.__name__.lstrip('_') + attr
+
+def escape_code_blocks(s):
+	return s.replace('`', '`\N{zero width non-joiner}')
+
+def format_datetime(d) -> str:
+	return d.strftime("%I:%M:%S %p UTC")
+
+def code_block(s, *, language=''):
+	return f'```{language}\n{s}\n```'

@@ -55,7 +55,10 @@ class Database:
 		return list(map(attrdict, revisions))
 
 	async def get_individual_revisions(self, guild_id, revision_ids):
-		return await self.bot.pool.fetch("""
+		"""return a list of page revisions for the given guild.
+		the revisions are sorted by their revision ID.
+		"""
+		return list(map(attrdict, await self.bot.pool.fetch("""
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
@@ -63,8 +66,8 @@ class Database:
 			WHERE
 				guild = $1
 				AND revision_id = ANY ($2)
-			ORDER BY revision_id DESC
-		""", guild_id, revision_ids)
+			ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-newest
+		""", guild_id, revision_ids)))
 
 	async def create_page(self, title, content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn:

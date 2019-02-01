@@ -15,9 +15,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import difflib
 import io
+import typing
 
+import discord
 from discord.ext import commands
+
+import utils
 
 class Wiki:
 	def __init__(self, bot):
@@ -51,12 +56,34 @@ class Wiki:
 		"""shows the revisions of a particular page"""
 		message = io.StringIO()
 		for revision in await self.db.get_page_revisions(ctx.guild.id, title):
-			message.write(f'#{revision.revision_id} Created by ')
-			message.write(str(ctx.guild.get_member(revision.author)) or "unknown user")
-			# TODO support per-guild timezone
-			message.write(f' at {revision.created.strftime("%I:%M:%S %p UTC")}\n')
+			message.write(self.revision_summary(ctx.guild, revision))
+			message.write('\n')
 
 		await ctx.send(message.getvalue())
+
+	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
+	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):
+		"""Compare two page revisions by their ID.
+
+		To get the revision ID you can use the history command.
+		The revisions will always be compared from oldest to newest, regardless of the order you specify.
+		"""
+		old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
+
+		diff = utils.escape_code_blocks('\n'.join(difflib.unified_diff(
+			old.content.splitlines(),
+			new.content.splitlines(),
+			fromfile=self.revision_summary(ctx.guild, old),
+			tofile=self.revision_summary(ctx.guild, new),
+			lineterm='')))
+
+		await ctx.send(utils.code_block(diff, language='diff'))
+
+	@staticmethod
+	def revision_summary(guild, revision):
+		author = guild.get_member(revision.author) or f'unknown user with ID {revision.author}'
+		return f'#{revision.revision_id} Created by {author} at {utils.format_datetime(revision.revised)}'
+
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))
