@@ -66,6 +66,11 @@ class CautiousMemory(commands.AutoShardedBot):
 		with contextlib.suppress(KeyError):
 			self.config['copyright_license_file'] = os.path.join(BASE_DIR, self.config['copyright_license_file'])
 
+		self._process_emoji_config()
+
+	def _process_emoji_config(self):
+		self.emoji_config.success = list(map(utils.convert_emoji, self.emoji_config.success))
+
 	@property
 	def activity(self):
 		prefixes = self.config['prefixes']

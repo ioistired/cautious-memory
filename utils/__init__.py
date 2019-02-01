@@ -15,7 +15,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-SUCCESS_EMOJIS = ('❌', '✅')
+import re
+
+import discord
 
 attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
@@ -34,3 +36,9 @@ def format_datetime(d) -> str:
 
 def code_block(s, *, language=''):
 	return f'```{language}\n{s}\n```'
+
+def convert_emoji(s) -> discord.PartialEmoji:
+	match = re.match(r'<?(a?):([A-Za-z0-9_]+):([0-9]{17,})>?', s)
+	if match:
+		return discord.PartialEmoji(animated=match[1], name=match[2], id=int(match[3]))
+	return discord.PartialEmoji(animated=None, name=s, id=None)
