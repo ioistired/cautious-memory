@@ -106,6 +106,27 @@ class Database:
 
 			await self._create_revision(conn, page_id, new_content, author_id)
 
+	async def set_guild_roles(self, guild_id, *, moderator_role_id, verified_role_id):
+		"""
+		set the role IDs for the Moderator and Verified status
+		to unset a role, set the respective role to None.
+		"""
+
+		if moderator_role_id is None and verified_role_id is None:
+			await self.bot.pool.execute("""
+				DELETE FROM guild_settings
+				WHERE guild = $1
+			""", guild_id)
+		else:
+			await self.bot.pool.execute("""
+				INSERT INTO guild_settings (guild, moderator_role, verified_role)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (guild)
+				DO UPDATE SET
+					moderator_role = EXCLUDED.moderator_role,
+					verified_role = EXCLUDED.verified_role
+			""", guild_id, moderator_role_id, verified_role_id)
+
 	async def _create_revision(self, connection, page_id, content, author_id):
 		await connection.execute("""
 			WITH revision AS (

@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS page_restrictions(
 CREATE UNIQUE INDEX IF NOT EXISTS page_restrictions_uniq_idx ON page_restrictions(page_id, pr_type, pr_level);
 
 CREATE TABLE IF NOT EXISTS guild_settings(
-	guild_id BIGINT PRIMARY KEY,
+	guild BIGINT PRIMARY KEY,
 	moderator_role BIGINT,
 	verified_role BIGINT,
 
