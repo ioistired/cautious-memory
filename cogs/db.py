@@ -50,7 +50,7 @@ class Database:
 			ORDER BY revision_id DESC
 		""", guild_id, title)
 		if not revisions:
-			raise errors.PageNotFound(title)
+			raise errors.PageNotFoundError(title)
 
 		return list(map(attrdict, revisions))
 
@@ -102,7 +102,7 @@ class Database:
 					AND guild = $2
 			""", title, guild_id)
 			if page_id is None:
-				raise errors.PageNotFoundError
+				raise errors.PageNotFoundError(title)
 
 			await self._create_revision(conn, page_id, new_content, author_id)
 
