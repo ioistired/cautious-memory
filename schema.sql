@@ -1,6 +1,6 @@
 SET TIME ZONE UTC;
 
-CREATE TABLE pages(
+CREATE TABLE IF NOT EXISTS pages(
 	id SERIAL PRIMARY KEY,
 	title VARCHAR(200) NOT NULL,
 	-- lets us find the text of the page
@@ -12,10 +12,10 @@ CREATE TABLE pages(
 	-- but this way is easier
 	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE INDEX pages_title_idx ON pages (title);
-CREATE UNIQUE INDEX pages_uniq_idx ON pages (title, guild);
+CREATE INDEX IF NOT EXISTS pages_title_idx ON pages (title);
+CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (title, guild);
 
-CREATE TABLE revisions(
+CREATE TABLE IF NOT EXISTS revisions(
 	id SERIAL PRIMARY KEY,
 	-- what page is this a revision of?
 	page_id INTEGER REFERENCES pages(id) NOT NULL,
@@ -24,6 +24,6 @@ CREATE TABLE revisions(
 	content VARCHAR(2000) NOT NULL,
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE TABLE guild_settings(
+CREATE TABLE IF NOT EXISTS guild_settings(
 	id BIGINT PRIMARY KEY,
 	moderator_role BIGINT);
