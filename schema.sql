@@ -23,12 +23,13 @@ CREATE TABLE IF NOT EXISTS revisions(
 	content VARCHAR(2000) NOT NULL,
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
--- who can perform a certain action on a page
--- this is ordered by hierarchy: moderators can do everything verified users can do
-CREATE TYPE page_restriction AS ENUM ('verified_users', 'moderators');
--- what action are these people allowed to perform?
--- for instance, to delete a page, deny view access to everyone but moderators
-CREATE TYPE page_restriction_level AS ENUM ('view', 'edit', 'delete');
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'page_restriction') THEN
+	-- who can perform a certain action on a page
+	-- this is ordered by hierarchy: moderators can do everything verified users can do
+	CREATE TYPE page_restriction AS ENUM ('verified_users', 'moderators');
+	-- what action are these people allowed to perform?
+	-- for instance, to delete a page, deny view access to everyone but moderators
+	CREATE TYPE page_restriction_level AS ENUM ('view', 'edit', 'delete'); END IF; END; $$;
 
 CREATE TABLE IF NOT EXISTS page_restrictions(
 	pr_id SERIAL PRIMARY KEY,
