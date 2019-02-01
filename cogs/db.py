@@ -17,7 +17,7 @@
 
 import asyncpg
 
-from utils import errors
+from utils import attrdict, errors
 
 class Database:
 	def __init__(self, bot):
@@ -28,32 +28,45 @@ class Database:
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
-			ON pages.latest_revision = revisions.id
-			WHERE guild = $1
-			AND title = $2
+			ON pages.latest_revision = revision_id
+			WHERE
+				guild = $1
+				AND title = $2
 		""", guild_id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
-		return row
+		return attrdict(row)
 
 	async def get_page_revisions(self, guild_id, title):
+		revisions = await self.bot.pool.fetch("""
+			SELECT *
+			FROM pages
+			INNER JOIN revisions
+			ON pages.page_id = revisions.page_id
+			WHERE
+				guild = $1
+				AND title = $2
+			ORDER BY revision_id DESC
+		""", guild_id, title)
+		if not revisions:
+			raise errors.PageNotFound(title)
+
+		return list(map(attrdict, revisions))
+
+	async def get_individual_revisions(self, guild_id, revision_ids):
 		return await self.bot.pool.fetch("""
 			SELECT *
 			FROM pages
-			LEFT JOIN revisions
-			ON pages.id = revisions.page_id
-			WHERE guild = $1
-			AND title = $2
-			ORDER BY revisions.id DESC
-		""", guild_id, title)
+			INNER JOIN revisions
+			ON pages.page_id = revisions.page_id
+			WHERE
+				guild = $1
+				AND revision_id = ANY ($2)
+			ORDER BY revision_id DESC
+		""", guild_id, revision_ids)
 
 	async def create_page(self, title, content, *, guild_id, author_id):
-		"""creates a new page
-
-		- locked: whether to restrict editing this page to moderators
-		"""
-
 		async with self.bot.pool.acquire() as conn:
 			tr = conn.transaction()
 			await tr.start()
@@ -62,7 +75,7 @@ class Database:
 				page_id = await conn.fetchval("""
 					INSERT INTO pages (title, guild, latest_revision)
 					VALUES ($1, $2, 0)  -- revision = 0 until we have a revision ID
-					RETURNING id
+					RETURNING page_id
 				""", title, guild_id)
 			except asyncpg.UniqueViolationError:
 				await tr.rollback()
@@ -79,10 +92,11 @@ class Database:
 	async def revise_page(self, title, new_content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			page_id = await conn.fetchval("""
-				SELECT id
+				SELECT page_id
 				FROM pages
-				WHERE title = $1
-				AND guild = $2
+				WHERE
+					title = $1
+					AND guild = $2
 			""", title, guild_id)
 			if page_id is None:
 				raise errors.PageNotFoundError
@@ -94,11 +108,11 @@ class Database:
 			WITH revision AS (
 				INSERT INTO revisions (page_id, author, content)
 				VALUES ($1, $2, $3)
-				RETURNING id
+				RETURNING revision_id
 			)
 			UPDATE pages
-			SET latest_revision = (SELECT id FROM revision)
-			WHERE id = $1
+			SET latest_revision = (SELECT revision_id FROM revision)
+			WHERE page_id = $1
 		""", page_id, author_id, content)
 
 def setup(bot):
