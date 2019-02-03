@@ -19,4 +19,7 @@
 
 	// the contents of this file will be sent to users when they request the copyright license of the bot
 	copyright_license_file: 'license-notice.txt',
+
+	// this URL will be sent to users when they request the source code of the bot
+	repo: 'https://gitlab.com/lambda/cautious-memory',
 }
