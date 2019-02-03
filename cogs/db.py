@@ -54,6 +54,23 @@ class Database:
 
 		return list(map(attrdict, revisions))
 
+	def get_all_pages(self, guild_id):
+		"""return an async iterator over all pages for the given guild"""
+		return self.cursor("""
+			SELECT *
+			FROM pages
+			INNER JOIN revisions
+			ON pages.latest_revision = revision_id
+			WHERE guild = $1
+			ORDER BY LOWER(title) ASC
+		""", guild_id)
+
+	async def cursor(self, query, *args):
+		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			async for row in conn.cursor(query, *args):
+				yield attrdict(row)
+
 	async def get_individual_revisions(self, guild_id, revision_ids):
 		"""return a list of page revisions for the given guild.
 		the revisions are sorted by their revision ID.

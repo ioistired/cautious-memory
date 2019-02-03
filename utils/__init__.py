@@ -42,3 +42,9 @@ def convert_emoji(s) -> discord.PartialEmoji:
 	if match:
 		return discord.PartialEmoji(animated=match[1], name=match[2], id=int(match[3]))
 	return discord.PartialEmoji(animated=None, name=s, id=None)
+
+async def async_enumerate(aiter, start=0):
+	i = start
+	async for x in aiter:
+		yield i, x
+		i += 1

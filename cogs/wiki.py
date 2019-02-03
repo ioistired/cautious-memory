@@ -44,6 +44,15 @@ class Wiki:
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
 
+	@commands.command(aliases=['pages'])
+	async def list(self, ctx):
+		"""Shows you a list of all the pages on this server."""
+		paginator = WrappedPaginator(prefix='', suffix='')
+		async for i, page in utils.async_enumerate(self.db.get_all_pages(ctx.guild.id), 1):
+			paginator.add_line(f'{i}. {page.title}')
+
+		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+
 	@commands.command(aliases=['add'])
 	async def create(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
 		"""Adds a new page to the wiki.
