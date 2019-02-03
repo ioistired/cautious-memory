@@ -17,6 +17,7 @@
 
 import textwrap
 
+from discord.ext import commands
 import discord.utils
 
 class Meta:
@@ -36,6 +37,11 @@ class Meta:
 		"""))
 
 	@commands.command()
+	async def support(self, ctx):
+		"""Gives you a link to the support server, where you can get help with the bot."""
+		await ctx.send(self.bot.config['support_server_invite_code'])
+
+	@commands.command()
 	async def source(self, ctx):
 		"""Links you to my source code."""
 		await ctx.send(self.bot.config['repo'])
@@ -43,7 +49,9 @@ class Meta:
 	@commands.command()
 	async def invite(self, ctx):
 		"""Sends you a link to invite me to your server."""
-		await ctx.send('<' + discord.utils.ouath_url(self.bot.user.id) + '>')
+		await ctx.send('<' + discord.utils.oauth_url(self.bot.user.id) + '>')
 
 def setup(bot):
 	bot.add_cog(Meta(bot))
+	if not bot.config.get('support_server_invite_code'):
+		bot.remove_command('support')

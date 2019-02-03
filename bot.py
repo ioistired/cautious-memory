@@ -193,6 +193,7 @@ class CautiousMemory(commands.AutoShardedBot):
 		for extension in (
 			'cogs.db',
 			'cogs.wiki',
+			'cogs.meta',
 			'jishaku',
 			'ben_cogs.misc',
 			'ben_cogs.debug',

@@ -22,4 +22,9 @@
 
 	// this URL will be sent to users when they request the source code of the bot
 	repo: 'https://gitlab.com/lambda/cautious-memory',
+
+	// enter the invite code portion only
+	// this will be sent to users when they request bot support
+	// if null, not set, or empty, the support command will be disabled.
+	support_server_invite_code: '',
 }
