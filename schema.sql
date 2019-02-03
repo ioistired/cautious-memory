@@ -11,8 +11,7 @@ CREATE TABLE IF NOT EXISTS pages(
 	-- but this way is easier
 	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE INDEX IF NOT EXISTS pages_title_idx ON pages (title);
-CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (title, guild);
+CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (LOWER(title), guild);
 
 CREATE TABLE IF NOT EXISTS revisions(
 	revision_id SERIAL PRIMARY KEY,

@@ -31,7 +31,7 @@ class Database:
 			ON pages.latest_revision = revision_id
 			WHERE
 				guild = $1
-				AND title = $2
+				AND LOWER(title) = LOWER($2)
 		""", guild_id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
@@ -46,7 +46,7 @@ class Database:
 			ON pages.page_id = revisions.page_id
 			WHERE
 				guild = $1
-				AND title = $2
+				AND LOWER(title) = LOWER($2)
 			ORDER BY revision_id DESC
 		""", guild_id, title)
 		if not revisions:
@@ -98,7 +98,7 @@ class Database:
 				SELECT page_id
 				FROM pages
 				WHERE
-					title = $1
+					LOWER(title) = LOWER($1)
 					AND guild = $2
 			""", title, guild_id)
 			if page_id is None:
@@ -112,7 +112,7 @@ class Database:
 				UPDATE pages
 				SET title = $3
 				WHERE
-					title = $2
+					LOWER(title) = LOWER($2)
 					AND guild = $1
 			""", guild_id, title, new_title)
 		except asyncpg.UniqueViolationError:
