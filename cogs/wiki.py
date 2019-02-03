@@ -69,6 +69,20 @@ class Wiki:
 
 		await PaginatorInterface(self.bot, paginator).send_to(ctx)
 
+	@commands.command()
+	async def revert(self, ctx, title: commands.clean_content, revision: int):
+		"""Reverts a page to a previous revision ID.
+		To get the revision ID, you can use the history command.
+		If the title has spaces, you must surround it in quotes.
+		"""
+		revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
+		if revision.title != title:
+			await ctx.send('Error: This revision is for another page.')
+			return
+
+		await self.db.revise_page(title, revision.content, guild_id=ctx.guild.id, author_id=ctx.author.id)
+		await ctx.message.add_reaction(self.bot.emoji_config.success[True])
+
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
 	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):
 		"""Compare two page revisions by their ID.
