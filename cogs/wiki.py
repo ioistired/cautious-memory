@@ -49,6 +49,8 @@ class Wiki:
 		"""Adds a new page to the wiki.
 		If the title has spaces, you must surround it in quotes.
 		"""
+		# hopefully prevent someone creating a wiki page like " a" that can't be retrieved
+		title = title.strip()
 		await self.db.create_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
