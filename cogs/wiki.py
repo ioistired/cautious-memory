@@ -62,6 +62,15 @@ class Wiki:
 		await self.db.revise_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
+	@commands.command()
+	async def rename(self, ctx, title: commands.clean_content, new_title: commands.clean_content):
+		"""Renames a wiki page.
+
+		If the old title or the new title have spaces in them, you must surround it in quotes.
+		"""
+		await self.db.rename_page(ctx.guild.id, title, new_title)
+		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: commands.clean_content):
 		"""shows the revisions of a particular page"""

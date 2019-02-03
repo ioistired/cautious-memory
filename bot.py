@@ -148,8 +148,7 @@ class CautiousMemory(commands.AutoShardedBot):
 		"""return whether the bot should reply to a given message"""
 		return not (
 			message.author == self.user
-			or (message.author.bot and not self._should_reply_to_bot(message))
-			or not message.content)
+			or (message.author.bot and not self._should_reply_to_bot(message)))
 
 	def _should_reply_to_bot(self, message):
 		should_reply = not self.config['ignore_bots'].get('default')

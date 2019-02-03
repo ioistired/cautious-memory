@@ -106,6 +106,23 @@ class Database:
 
 			await self._create_revision(conn, page_id, new_content, author_id)
 
+	async def rename_page(self, guild_id, title, new_title):
+		try:
+			command_tag = await self.bot.pool.execute("""
+				UPDATE pages
+				SET title = $3
+				WHERE
+					title = $2
+					AND guild = $1
+			""", guild_id, title, new_title)
+		except asyncpg.UniqueViolationError:
+			raise errors.PageExistsError
+
+		# UPDATE 1 -> 1
+		rows_updated = int(command_tag.split()[1])
+		if not rows_updated:
+			raise errors.PageNotFoundError(title)
+
 	async def set_guild_roles(self, guild_id, *, moderator_role_id, verified_role_id):
 		"""
 		set the role IDs for the Moderator and Verified status
