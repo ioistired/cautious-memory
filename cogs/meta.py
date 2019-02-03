@@ -39,7 +39,7 @@ class Meta:
 	@commands.command()
 	async def support(self, ctx):
 		"""Gives you a link to the support server, where you can get help with the bot."""
-		await ctx.send(self.bot.config['support_server_invite_code'])
+		await ctx.send('https://discord.gg/' + self.bot.config['support_server_invite_code'])
 
 	@commands.command()
 	async def source(self, ctx):
