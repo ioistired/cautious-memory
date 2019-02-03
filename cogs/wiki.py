@@ -51,6 +51,10 @@ class Wiki:
 		async for i, page in utils.async_enumerate(self.db.get_all_pages(ctx.guild.id), 1):
 			paginator.add_line(f'{i}. {page.title}')
 
+		if not paginator.pages:
+			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
+			return
+
 		await PaginatorInterface(self.bot, paginator).send_to(ctx)
 
 	@commands.command(aliases=['add'])
