@@ -50,7 +50,7 @@ class Wiki:
 		If the title has spaces, you must surround it in quotes.
 		"""
 		await self.db.create_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
-		await ctx.message.add_reaction(self.bot.emoji_config.success[True])
+		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revise'])
 	async def edit(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
@@ -58,7 +58,7 @@ class Wiki:
 		If the title has spaces, you must surround it in quotes.
 		"""
 		await self.db.revise_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
-		await ctx.message.add_reaction(self.bot.emoji_config.success[True])
+		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: commands.clean_content):
@@ -81,7 +81,7 @@ class Wiki:
 			return
 
 		await self.db.revise_page(title, revision.content, guild_id=ctx.guild.id, author_id=ctx.author.id)
-		await ctx.message.add_reaction(self.bot.emoji_config.success[True])
+		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
 	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):

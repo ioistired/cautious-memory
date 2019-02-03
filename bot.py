@@ -46,7 +46,6 @@ logger = logging.getLogger('bot')
 class CautiousMemory(commands.AutoShardedBot):
 	def __init__(self, *args, **kwargs):
 		self.config = kwargs.pop('config')
-		self.emoji_config = utils.attrdict(kwargs.pop('emoji_config'))
 		self.process_config()
 		self.db_ready = asyncio.Event()
 		self._fallback_prefix = str(uuid.uuid4())
@@ -66,10 +65,8 @@ class CautiousMemory(commands.AutoShardedBot):
 		with contextlib.suppress(KeyError):
 			self.config['copyright_license_file'] = os.path.join(BASE_DIR, self.config['copyright_license_file'])
 
-		self._process_emoji_config()
-
-	def _process_emoji_config(self):
-		self.emoji_config.success = list(map(utils.convert_emoji, self.emoji_config.success))
+		self.config['success_emoji'] = utils.convert_emoji(self.config['success_emoji'])
+		self.config['failure_emoji'] = utils.convert_emoji(self.config['failure_emoji'])
 
 	@property
 	def activity(self):
@@ -131,7 +128,7 @@ class CautiousMemory(commands.AutoShardedBot):
 				await context.send(message)
 		elif isinstance(error, commands.NotOwner):
 			logger.error('%s tried to run %s but is not the owner', context.author, context.command.name)
-			await context.message.add_reaction(self.emoji_config.success[False])
+			await context.message.add_reaction(self.config['failure_emoji'])
 		elif isinstance(error, (commands.UserInputError, commands.CheckFailure)):
 			await context.send(error)
 		elif (
