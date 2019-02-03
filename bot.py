@@ -202,12 +202,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			logger.info('Successfully loaded %s', extension)
 
 if __name__ == '__main__':
-	config_dir = os.path.join(BASE_DIR, 'config')
-
-	with open(os.path.join(config_dir, 'config.json5')) as f:
+	with open(os.path.join(BASE_DIR, 'config.json5')) as f:
 		config = json5.load(f)
 
-	with open(os.path.join(config_dir, 'emojis.json5')) as f:
-		emoji_config = json5.load(f)
-
-	CautiousMemory(config=config, emoji_config=emoji_config).run()
+	CautiousMemory(config=config).run()

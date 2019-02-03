@@ -10,4 +10,13 @@
 		stats: {
 			'discord.bots.gg': null,
 			'discordbots.org': null,
-			'lbots.org': null}}}
+			'lbots.org': null,
+		},
+	},
+
+	failure_emoji: '❌',
+	success_emoji: '✅',
+
+	// the contents of this file will be sent to users when they request the copyright license of the bot
+	copyright_license_file: 'license-notice.txt',
+}
