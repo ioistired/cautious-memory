@@ -65,6 +65,20 @@ class Database:
 			ORDER BY LOWER(title) ASC
 		""", guild_id)
 
+	def search_pages(self, guild_id, query):
+		"""return an async iterator over all pages whose title is similar to query"""
+		return self.cursor("""
+			SELECT *
+			FROM pages
+			INNER JOIN revisions
+			ON pages.latest_revision = revision_id
+			WHERE
+				guild = $1
+				AND title % $2
+			ORDER BY similarity(title, $2) DESC
+			LIMIT 100
+		""", guild_id, query)
+
 	async def cursor(self, query, *args):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():

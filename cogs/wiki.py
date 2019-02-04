@@ -40,7 +40,7 @@ class Wiki:
 
 	@commands.command(aliases=['get'])
 	async def show(self, ctx, *, title: commands.clean_content):
-		"""Searches the wiki for the page requested."""
+		"""Shows you the tag requested."""
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
 
@@ -53,6 +53,19 @@ class Wiki:
 
 		if not paginator.pages:
 			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
+			return
+
+		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+
+	@commands.command()
+	async def search(self, ctx, *, query):
+		"""Searches this server's wiki pages for titles similar to your query."""
+		paginator = WrappedPaginator(prefix='', suffix='')
+		async for i, page in utils.async_enumerate(self.db.search_pages(ctx.guild.id, query), 1):
+			paginator.add_line(f'{i}. {page.title}')
+
+		if not paginator.pages:
+			await ctx.send('No pages match your search.')
 			return
 
 		await PaginatorInterface(self.bot, paginator).send_to(ctx)
