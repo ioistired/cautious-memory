@@ -127,7 +127,17 @@ class Wiki:
 		To get the revision ID you can use the history command.
 		The revisions will always be compared from oldest to newest, regardless of the order you specify.
 		"""
-		old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
+		try:
+			old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
+		except ValueError:
+			await ctx.send(
+				'One or more provided revision IDs were invalid. '
+				f'Use the {ctx.prefix}history command to get valid revision IDs.')
+			return
+
+		if old.page_id != new.page_id:
+			await ctx.send('You can only compare revisions of the same page.')
+			return
 
 		diff = difflib.unified_diff(
 			old.content.splitlines(),

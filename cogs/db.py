@@ -89,7 +89,7 @@ class Database:
 		"""return a list of page revisions for the given guild.
 		the revisions are sorted by their revision ID.
 		"""
-		return list(map(attrdict, await self.bot.pool.fetch("""
+		results = list(map(attrdict, await self.bot.pool.fetch("""
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
@@ -99,6 +99,11 @@ class Database:
 				AND revision_id = ANY ($2)
 			ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-newest
 		""", guild_id, revision_ids)))
+
+		if len(results) != len(revision_ids):
+			raise ValueError('one or more revision IDs not found')
+
+		return results
 
 	async def create_page(self, title, content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn:
