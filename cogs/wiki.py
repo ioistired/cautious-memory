@@ -40,7 +40,7 @@ class Wiki:
 
 	@commands.command(aliases=['get'])
 	async def show(self, ctx, *, title: commands.clean_content):
-		"""Shows you the tag requested."""
+		"""Shows you the contents of the page requested."""
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
 
@@ -99,7 +99,7 @@ class Wiki:
 
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: commands.clean_content):
-		"""shows the revisions of a particular page"""
+		"""Shows the revisions of a particular page"""
 		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
 		for revision in await self.db.get_page_revisions(ctx.guild.id, title):
 			paginator.add_line(self.revision_summary(ctx.guild, revision))
@@ -122,7 +122,7 @@ class Wiki:
 
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
 	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):
-		"""Compare two page revisions by their ID.
+		"""Compares two page revisions by their ID.
 
 		To get the revision ID you can use the history command.
 		The revisions will always be compared from oldest to newest, regardless of the order you specify.
