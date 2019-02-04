@@ -38,7 +38,7 @@ class Wiki:
 		self.bot = bot
 		self.db = self.bot.get_cog('Database')
 
-	@commands.command(aliases=['get'])
+	@commands.command(aliases=['wiki'])
 	async def show(self, ctx, *, title: commands.clean_content):
 		"""Shows you the contents of the page requested."""
 		page = await self.db.get_page(ctx.guild.id, title)
