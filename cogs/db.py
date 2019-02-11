@@ -54,20 +54,21 @@ class Database:
 
 		return list(map(attrdict, revisions))
 
-	def get_all_pages(self, guild_id):
+	async def get_all_pages(self, guild_id):
 		"""return an async iterator over all pages for the given guild"""
-		return self.cursor("""
+		async for row in self.cursor("""
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
 			ON pages.latest_revision = revision_id
 			WHERE guild = $1
 			ORDER BY LOWER(title) ASC
-		""", guild_id)
+		""", guild_id):
+			yield row
 
-	def search_pages(self, guild_id, query):
+	async def search_pages(self, guild_id, query):
 		"""return an async iterator over all pages whose title is similar to query"""
-		return self.cursor("""
+		async for row in self.cursor("""
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
@@ -77,7 +78,8 @@ class Database:
 				AND title % $2
 			ORDER BY similarity(title, $2) DESC
 			LIMIT 100
-		""", guild_id, query)
+		""", guild_id, query):
+			yield row
 
 	async def cursor(self, query, *args):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
