@@ -33,6 +33,14 @@ class WrappedPaginator(WrappedPaginator):
 		max_size = kwargs.pop('max_size', 1991)  # constant found by binary search
 		super().__init__(*args, **kwargs, max_size=max_size)
 
+class PaginatorInterface(PaginatorInterface):
+	def __init__(self, ctx, paginator):
+		self.ctx = ctx
+		super().__init__(ctx.bot, paginator, owner=ctx.author)
+
+	async def begin(self):
+		await super().send_to(self.ctx)
+
 class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -55,7 +63,7 @@ class Wiki(commands.Cog):
 			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
 			return
 
-		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command()
 	async def search(self, ctx, *, query):
@@ -68,7 +76,7 @@ class Wiki(commands.Cog):
 			await ctx.send('No pages match your search.')
 			return
 
-		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command(aliases=['add'])
 	async def create(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
@@ -104,7 +112,7 @@ class Wiki(commands.Cog):
 		async for revision in self.db.get_page_revisions(ctx.guild.id, title):
 			paginator.add_line(self.revision_summary(ctx.guild, revision))
 
-		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command()
 	async def revert(self, ctx, title: commands.clean_content, revision: int):
@@ -151,7 +159,7 @@ class Wiki(commands.Cog):
 		for line in diff:
 			paginator.add_line(utils.escape_code_blocks(line))
 
-		await PaginatorInterface(self.bot, paginator).send_to(ctx)
+		await PaginatorInterface(ctx, paginator).begin()
 
 	@staticmethod
 	def revision_summary(guild, revision):
