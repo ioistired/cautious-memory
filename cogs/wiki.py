@@ -33,7 +33,7 @@ class WrappedPaginator(WrappedPaginator):
 		max_size = kwargs.pop('max_size', 1991)  # constant found by binary search
 		super().__init__(*args, **kwargs, max_size=max_size)
 
-class Wiki:
+class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.db = self.bot.get_cog('Database')

@@ -16,10 +16,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncpg
+from discord.ext import commands
 
 from utils import attrdict, errors
 
-class Database:
+class Database(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 

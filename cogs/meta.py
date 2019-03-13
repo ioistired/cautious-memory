@@ -20,7 +20,7 @@ import textwrap
 from discord.ext import commands
 import discord.utils
 
-class Meta:
+class Meta(commands.Cog):
 	"""Commands pertaining to the bot itself."""
 
 	def __init__(self, bot):
