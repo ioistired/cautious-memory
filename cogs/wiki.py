@@ -101,7 +101,7 @@ class Wiki:
 	async def history(self, ctx, *, title: commands.clean_content):
 		"""Shows the revisions of a particular page"""
 		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
-		for revision in await self.db.get_page_revisions(ctx.guild.id, title):
+		async for revision in self.db.get_page_revisions(ctx.guild.id, title):
 			paginator.add_line(self.revision_summary(ctx.guild, revision))
 
 		await PaginatorInterface(self.bot, paginator).send_to(ctx)

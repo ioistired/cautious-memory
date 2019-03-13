@@ -39,7 +39,7 @@ class Database:
 		return attrdict(row)
 
 	async def get_page_revisions(self, guild_id, title):
-		revisions = await self.bot.pool.fetch("""
+		async for row in self.cursor("""
 			SELECT *
 			FROM pages
 			INNER JOIN revisions
@@ -48,11 +48,8 @@ class Database:
 				guild = $1
 				AND LOWER(title) = LOWER($2)
 			ORDER BY revision_id DESC
-		""", guild_id, title)
-		if not revisions:
-			raise errors.PageNotFoundError(title)
-
-		return list(map(attrdict, revisions))
+		""", guild_id, title):
+			yield row
 
 	async def get_all_pages(self, guild_id):
 		"""return an async iterator over all pages for the given guild"""
