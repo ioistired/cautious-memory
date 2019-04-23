@@ -120,11 +120,11 @@ class Wiki(commands.Cog):
 		To get the revision ID, you can use the history command.
 		If the title has spaces, you must surround it in quotes.
 		"""
-		revisions = await self.db.get_individual_revisions(ctx.guild.id, [revision])
-		if not revisions:
+		try:
+			revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
+		except ValueError:
 			await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
 			return
-		revision = revisions[0]
 
 		if revision.title.lower() != title.lower():
 			await ctx.send('Error: This revision is for another page.')
@@ -159,14 +159,14 @@ class Wiki(commands.Cog):
 			tofile=self.revision_summary(ctx.guild, new),
 			lineterm='')
 
-		if not diff:
-			await ctx.send('These revisions appear to be identical.')
-			return
-
 		del old, new  # save a bit of memory while we paginate
 		paginator = WrappedPaginator(prefix='```diff\n')
 		for line in diff:
 			paginator.add_line(utils.escape_code_blocks(line))
+
+		if not paginator.pages:
+			await ctx.send('These revisions appear to be identical.')
+			return
 
 		await PaginatorInterface(ctx, paginator).begin()
 
