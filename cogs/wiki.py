@@ -159,6 +159,10 @@ class Wiki(commands.Cog):
 			tofile=self.revision_summary(ctx.guild, new),
 			lineterm='')
 
+		if not diff:
+			await ctx.send('These revisions appear to be identical.')
+			return
+
 		del old, new  # save a bit of memory while we paginate
 		paginator = WrappedPaginator(prefix='```diff\n')
 		for line in diff:
