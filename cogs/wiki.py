@@ -120,8 +120,13 @@ class Wiki(commands.Cog):
 		To get the revision ID, you can use the history command.
 		If the title has spaces, you must surround it in quotes.
 		"""
-		revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
-		if revision.title != title:
+		revisions = await self.db.get_individual_revisions(ctx.guild.id, [revision])
+		if not revisions:
+			await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
+			return
+		revision = revisions[0]
+
+		if revision.title.lower() != title.lower():
 			await ctx.send('Error: This revision is for another page.')
 			return
 
