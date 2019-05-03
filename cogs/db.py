@@ -100,7 +100,7 @@ class Database(commands.Cog):
 			ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-newest
 		""", guild_id, revision_ids)))
 
-		if len(results) != len(revision_ids):
+		if len(results) != len(set(revision_ids)):
 			raise ValueError('one or more revision IDs not found')
 
 		return results
