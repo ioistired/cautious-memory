@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS pages_name_trgm_idx ON pages USING GIN (title gin_trg
 CREATE TABLE IF NOT EXISTS revisions(
 	revision_id SERIAL PRIMARY KEY,
 	-- what page is this a revision of?
-	page_id INTEGER REFERENCES pages(page_id) NOT NULL,
+	page_id INTEGER REFERENCES pages NOT NULL,
 	-- the user ID who created this revision
 	author BIGINT NOT NULL,
 	content VARCHAR(2000) NOT NULL,
@@ -33,7 +33,7 @@ DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'page_restricti
 
 CREATE TABLE IF NOT EXISTS page_restrictions(
 	pr_id SERIAL PRIMARY KEY,
-	page_id INTEGER REFERENCES pages(page_id) NOT NULL,
+	page_id INTEGER REFERENCES pages NOT NULL,
 	pr_type page_restriction NOT NULL,
 	pr_level page_restriction_level NOT NULL);
 
