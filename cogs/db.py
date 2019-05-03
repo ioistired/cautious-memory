@@ -27,9 +27,10 @@ class Database(commands.Cog):
 	async def get_page(self, guild_id, title):
 		row = await self.bot.pool.fetchrow("""
 			SELECT *
-			FROM pages
-			INNER JOIN revisions
-			ON pages.latest_revision = revision_id
+			FROM
+				pages
+				INNER JOIN revisions
+					ON pages.latest_revision = revisions.revision_id
 			WHERE
 				guild = $1
 				AND LOWER(title) = LOWER($2)
@@ -42,9 +43,7 @@ class Database(commands.Cog):
 	async def get_page_revisions(self, guild_id, title):
 		async for row in self.cursor("""
 			SELECT *
-			FROM pages
-			INNER JOIN revisions
-			ON pages.page_id = revisions.page_id
+			FROM pages INNER JOIN revisions USING (page_id)
 			WHERE
 				guild = $1
 				AND LOWER(title) = LOWER($2)
@@ -56,9 +55,10 @@ class Database(commands.Cog):
 		"""return an async iterator over all pages for the given guild"""
 		async for row in self.cursor("""
 			SELECT *
-			FROM pages
-			INNER JOIN revisions
-			ON pages.latest_revision = revision_id
+			FROM
+				pages
+				INNER JOIN revisions
+					ON pages.latest_revision = revisions.revision_id
 			WHERE guild = $1
 			ORDER BY LOWER(title) ASC
 		""", guild_id):
@@ -68,9 +68,10 @@ class Database(commands.Cog):
 		"""return an async iterator over all pages whose title is similar to query"""
 		async for row in self.cursor("""
 			SELECT *
-			FROM pages
-			INNER JOIN revisions
-			ON pages.latest_revision = revision_id
+			FROM
+				pages
+				INNER JOIN revisions
+					ON pages.latest_revision = revisions.revision_id
 			WHERE
 				guild = $1
 				AND title % $2
@@ -91,9 +92,7 @@ class Database(commands.Cog):
 		"""
 		results = list(map(attrdict, await self.bot.pool.fetch("""
 			SELECT *
-			FROM pages
-			INNER JOIN revisions
-			ON pages.page_id = revisions.page_id
+			FROM pages INNER JOIN revisions USING (page_id)
 			WHERE
 				guild = $1
 				AND revision_id = ANY ($2)
