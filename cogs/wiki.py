@@ -46,6 +46,9 @@ class Wiki(commands.Cog):
 		self.bot = bot
 		self.db = self.bot.get_cog('Database')
 
+	def cog_check(self, ctx):
+		return bool(ctx.guild)
+
 	@commands.command(aliases=['wiki'])
 	async def show(self, ctx, *, title: commands.clean_content):
 		"""Shows you the contents of the page requested."""
