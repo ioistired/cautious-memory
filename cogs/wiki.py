@@ -65,6 +65,23 @@ class Wiki(commands.Cog):
 
 		await PaginatorInterface(ctx, paginator).begin()
 
+	@commands.command(name='recent-revisions')
+	async def recent_revisions(self, ctx):
+		"""Shows you a list of the most recent revisions to pages on this server.
+
+		Revisions shown were made within the past two weeks.
+		"""
+		paginator = WrappedPaginator(prefix='', suffix='')
+		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=2)
+		async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff):
+			paginator.add_line(self.revision_summary(ctx.guild, revision, include_title=True))
+
+		if not paginator.pages:
+			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
+			return
+
+		await PaginatorInterface(ctx, paginator).begin()
+
 	@commands.command()
 	async def search(self, ctx, *, query):
 		"""Searches this server's wiki pages for titles similar to your query."""
@@ -175,9 +192,12 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@staticmethod
-	def revision_summary(guild, revision):
+	def revision_summary(guild, revision, *, include_title=False):
 		author = guild.get_member(revision.author) or f'unknown user with ID {revision.author}'
-		return f'#{revision.revision_id} Created by {author} at {utils.format_datetime(revision.revised)}'
+		suffix = f'was revised by {author} at {utils.format_datetime(revision.revised)}'
+		if include_title:
+			return f'{revision.title} {suffix}'
+		return f'#{revision.revision_id} {suffix}'
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))

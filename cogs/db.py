@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import datetime
+
 import asyncpg
 from discord.ext import commands
 
@@ -62,6 +64,16 @@ class Database(commands.Cog):
 			WHERE guild = $1
 			ORDER BY LOWER(title) ASC
 		""", guild_id):
+			yield row
+
+	async def get_recent_revisions(self, guild_id, cutoff: datetime.datetime):
+		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
+		async for row in self.cursor("""
+			SELECT title, revision_id, page_id, author, revised
+			FROM revisions INNER JOIN pages USING (page_id)
+			WHERE guild = $1 AND revised > cutoff
+			ORDER BY revised DESC
+		""", guild_id, cutoff):
 			yield row
 
 	async def search_pages(self, guild_id, query):
