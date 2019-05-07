@@ -174,32 +174,34 @@ class Database(commands.Cog):
 		if not rows_updated:
 			raise errors.PageNotFoundError(title)
 
-	async def get_guild_roles(self, guild_id):
-		row = await self.bot.pool.fetchrow('SELECT * FROM guild_settings WHERE guild = $1', guild_id)
+	async def get_guild_roles(self, guild_id, *, connection=None):
+		row = await (connection or self.bot.pool).fetchrow("""
+			SELECT verified_role, moderator_role FROM guild_settings WHERE guild = $1
+		""", guild_id)
 		return row and attrdict(row)
 
-	async def set_guild_roles(self, guild_id, *, moderator_role_id, verified_role_id):
-		"""set the role IDs for the Moderator and Verified status
-		to unset a role, set the respective role to None.
+	async def set_role(self, role_name, role_id, *, guild_id):
+		"""Set the role ID for the given role name (either 'verified' or 'moderator')
+		To unset it, pass None as the role_id.
 		"""
-		if moderator_role_id is None and verified_role_id is None:
-			await self.bot.pool.execute("""
-				DELETE FROM guild_settings
-				WHERE guild = $1
-			""", guild_id)
-			return
+		async with self.bot.pool.acquire() as conn:
+			try:
+				await conn.execute(f"""
+					INSERT INTO guild_settings (guild, {role_name}_role)
+					VALUES ($1, $2)
+					ON CONFLICT (guild) DO UPDATE SET
+					{role_name}_role = EXCLUDED.{role_name}_role
+				""", guild_id, role_id)
+			except asyncpg.CheckViolationError:
+				# we tried to set both roles to NULL
+				await self.clear_guild_roles(guild_id, connection=conn)
 
-		await self.bot.pool.execute("""
-			INSERT INTO guild_settings (guild, moderator_role, verified_role)
-			VALUES ($1, $2, $3)
-			ON CONFLICT (guild)
-			DO UPDATE SET
-				moderator_role = EXCLUDED.moderator_role,
-				verified_role = EXCLUDED.verified_role
-		""", guild_id, moderator_role_id, verified_role_id)
+	async def clear_guild_roles(self, guild_id, *, connection=None):
+		"""Unset the verified and moderator roles for the given guild."""
+		await (connection or self.bot.pool).execute('DELETE FROM guild_settings WHERE guild = $1', guild_id)
 
-	async def get_page_permissions(self, title, *, guild_id):
-		row = await self.bot.pool.fetchrow("""
+	async def get_page_permissions(self, title, *, guild_id, connection=None):
+		row = await (connection or self.bot.pool).fetchrow("""
 			SELECT page_id, guild, title, everyone_perms, verified_perms, moderator_perms
 			FROM effective_page_permissions
 			WHERE guild = $1 AND LOWER(title) = LOWER($2)
@@ -209,17 +211,23 @@ class Database(commands.Cog):
 		return self.convert_page_permissions(attrdict(row))
 
 	async def get_page_permissions_for(self, title, *, guild_id, member: discord.Member):
-		guild_roles = await self.get_guild_roles(guild_id)
-		page_perms = await self.get_page_permissions(title, guild_id=guild_id)
+		async with self.bot.pool.acquire() as conn:
+			guild_roles = await self.get_guild_roles(guild_id, connection=conn)
+			page_perms = await self.get_page_permissions(title, guild_id=guild_id, connection=conn)
+
+		# I *could* change the parameter to type Guild, but I want to keep it consistent with the other methods
+		if member == self.bot.get_guild(guild_id).owner:
+			return PageAccessLevel.delete
+
 		if guild_roles is None:
 			return page_perms.everyone_perms
-		return try_enum(PageAccessLevel, page_perms[self.user_role(member, guild_roles) + '_perms'])
+		return page_perms[self.user_role(member, guild_roles) + '_perms']
 
 	@staticmethod
 	def user_role(member, guild_roles):
-		if member._roles.has(guild_roles.moderator_role):
+		if guild_roles.moderator_role is not None and member._roles.has(guild_roles.moderator_role):
 			return 'moderator'
-		if member._roles.has(guild_roles.verified_role):
+		if guild_roles.verified_role is not None and member._roles.has(guild_roles.verified_role):
 			return 'verified'
 		return 'everyone'
 
