@@ -128,11 +128,11 @@ class CautiousMemory(commands.AutoShardedBot):
 		elif isinstance(error, commands.NotOwner):
 			logger.error('%s tried to run %s but is not the owner', context.author, context.command.name)
 			await context.message.add_reaction(self.config['failure_emoji'])
-		elif isinstance(error, (commands.UserInputError, commands.CheckFailure)):
+		elif isinstance(error, (commands.UserInputError, commands.CheckFailure, commands.ArgumentParsingError)):
 			await context.send(error)
 		elif (
 			isinstance(error, commands.CommandInvokeError)
-			and not hasattr(context.cog, utils.mangle(context.cog, '__error'))
+			and not hasattr(context.cog, 'cog_command_error')
 		):
 			logger.error('"%s" caused an exception', context.message.content)
 			logger.error(''.join(traceback.format_tb(error.original.__traceback__)))

@@ -23,7 +23,19 @@ import discord
 from discord.ext import commands
 from jishaku.paginators import WrappedPaginator, PaginatorInterface
 
+from cogs.db import PageAccessLevel
 import utils
+from utils import errors
+
+class PageConverter(commands.Converter):
+	def __init__(self, required_perms=PageAccessLevel.view):
+		self.required_perms = required_perms
+
+	async def convert(self, ctx, title):
+		perms = await ctx.cog.db.get_page_permissions_for(title, guild_id=ctx.guild.id, member=ctx.author)
+		if perms >= self.required_perms:
+			return await commands.clean_content().convert(ctx, title)
+		raise errors.PermissionDeniedError(self.required_perms)
 
 class WrappedPaginator(WrappedPaginator):
 	"""subclass of jishaku.paginators.WrappedPaginator
@@ -50,7 +62,7 @@ class Wiki(commands.Cog):
 		return bool(ctx.guild)
 
 	@commands.command(aliases=['wiki'])
-	async def show(self, ctx, *, title: commands.clean_content):
+	async def show(self, ctx, *, title: PageConverter()):
 		"""Shows you the contents of the page requested."""
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
@@ -109,7 +121,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revise'])
-	async def edit(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
+	async def edit(self, ctx, title: PageConverter(PageAccessLevel.edit), *, content: commands.clean_content):
 		"""Edits an existing wiki page.
 		If the title has spaces, you must surround it in quotes.
 		"""
@@ -117,7 +129,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command()
-	async def rename(self, ctx, title: commands.clean_content, new_title: commands.clean_content):
+	async def rename(self, ctx, title: PageConverter(PageAccessLevel.edit), new_title: commands.clean_content):
 		"""Renames a wiki page.
 
 		If the old title or the new title have spaces in them, you must surround it in quotes.
@@ -126,7 +138,8 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
-	async def history(self, ctx, *, title: commands.clean_content):
+	# none because recent-revisions already allows this without any perms
+	async def history(self, ctx, *, title: PageConverter(PageAccessLevel.none)):
 		"""Shows the revisions of a particular page"""
 		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
 		async for revision in self.db.get_page_revisions(ctx.guild.id, title):
@@ -135,7 +148,7 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command()
-	async def revert(self, ctx, title: commands.clean_content, revision: int):
+	async def revert(self, ctx, title: PageConverter(PageAccessLevel.edit), revision: int):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
 		If the title has spaces, you must surround it in quotes.
@@ -175,6 +188,10 @@ class Wiki(commands.Cog):
 		if old.page_id != new.page_id:
 			await ctx.send('You can only compare revisions of the same page.')
 			return
+
+		perms = await self.db.get_page_permissions_for(new.title, guild_id=ctx.guild.id, member=ctx.author)
+		if perms < PageAccessLevel.view:
+			raise errors.PermissionDeniedError(PageAccessLevel.view)
 
 		diff = difflib.unified_diff(
 			old.content.splitlines(),

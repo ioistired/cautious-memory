@@ -30,12 +30,15 @@ class PageExistsError(PageError):
 		super().__init__(f'A page with that name already exists.')
 
 class PageNotFoundError(PageError):
-	def __init__(self, name):
+	def __init__(self, name=None):
 		self.name = name
-		super().__init__(f'A page called {name} does not exist.')
+		if name is None:
+			super().__init__('That page does not exist.')
+		else:
+			super().__init__(f'A page called {name} does not exist.')
 
 class PermissionDeniedError(PageError):
-	"""Raised when the user tries to modify a locked page and they are not a moderator."""
-	def __init__(self):
-		super().__init__(f"Cannot modify that page because it is locked and you are not a moderator.")
-
+	def __init__(self, required_permissions):
+		super().__init__(
+			"You don't have the needed permissions to perform this action. "
+			f"{required_permissions.name.title()} permissions needed!")
