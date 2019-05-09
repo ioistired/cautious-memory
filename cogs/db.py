@@ -221,10 +221,10 @@ class Database(commands.Cog):
 
 		if guild_roles is None:
 			return page_perms.everyone_perms
-		return page_perms[self.user_role(member, guild_roles) + '_perms']
+		return page_perms[self.member_role(member, guild_roles) + '_perms']
 
 	@staticmethod
-	def user_role(member, guild_roles):
+	def member_role(member, guild_roles):
 		if guild_roles.moderator_role is not None and member._roles.has(guild_roles.moderator_role):
 			return 'moderator'
 		if guild_roles.verified_role is not None and member._roles.has(guild_roles.verified_role):
@@ -274,23 +274,13 @@ class Database(commands.Cog):
 			return attrdict.fromkeys(['default_perms', 'verified_perms', 'moderator_perms'], PageAccessLevel.edit)
 		return attrdict(row)
 
-	async def set_default_permissions(
-		self,
-		guild_id,
-		*,
-		everyone_perms: PageAccessLevel = PageAccessLevel.edit,
-		verified_perms: PageAccessLevel = PageAccessLevel.edit,
-		moderator_perms: PageAccessLevel = PageAccessLevel.edit,
-	):
-		await self.bot.pool.execute("""
-			INSERT INTO guild_default_permissions (guild, everyone_perms, verified_perms, moderator_perms)
-			VALUES ($1, $2::access_level, $3::access_level, $4::access_level)
+	async def set_default_permissions(self, role_name, permissions: PageAccessLevel, *, guild_id):
+		await self.bot.pool.execute(f"""
+			INSERT INTO guild_default_permissions (guild, {role_name}_perms)
+			VALUES ($1, $2::access_level)
 			ON CONFLICT (guild) DO UPDATE
-			SET
-				everyone_perms = EXCLUDED.everyone_perms,
-				verified_perms = EXCLUDED.verified_perms,
-				moderator_perms = EXCLUDED.moderator_perms
-		""", guild_id, everyone_perms.name, verified_perms.name, moderator_perms.name)
+			SET {role_name}_perms = EXCLUDED.{role_name}_perms
+		""", guild_id, permissions.name)
 
 	async def clear_default_permissions(self, guild_id):
 		"""reset the default permissions for a guild to the default default permissions"""

@@ -16,6 +16,17 @@
 import discord
 from discord.ext import commands
 
+from cogs.db import PageAccessLevel
+
+class PageAccessLevelConverter(commands.Converter):
+	@staticmethod
+	async def convert(ctx, argument):
+		try:
+			return PageAccessLevel[argument.lower()]
+		except KeyError:
+			valid = ', '.join(PageAccessLevel.__members__.keys())
+			raise commands.BadArgument(f'Invalid permission level. The valid ones are {valid}.')
+
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""Commands that configure the permissions for particular pages or the entire server.
 
@@ -45,40 +56,50 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
 
-	@commands.group(invoke_without_command=False)
+	@commands.command(aliases=['permissions', 'perms'])
 	async def roles(self, ctx):
-		"""Show the configured roles on this server."""
+		"""Show the configured roles on this server and their permissions."""
 		roles = await self.db.get_guild_roles(ctx.guild.id)
 		if not roles:
 			await ctx.send('No roles have been configured for this server.')
 
 		verified_role = self.format_role(ctx.guild, roles.verified_role)
 		moderator_role = self.format_role(ctx.guild, roles.moderator_role)
+		perms = await self.db.get_default_permissions(ctx.guild.id)
 
 		await ctx.send(discord.utils.escape_mentions(
-			f'Verified role: {verified_role}\n'
-			f'Moderator role: {moderator_role}'))
+			f"Everyone's permissions: {perms.everyone_perms}\n"
+			f'Verified role: {verified_role}, Permissions: {perms.verified_perms}\n'
+			f'Moderator role: {moderator_role}, Permissions: {perms.moderator_perms}'))
 
-	async def set_role(self, ctx, role_name, role: discord.Role):
-		if not role < ctx.author.top_role and ctx.guild.owner != ctx.author:
+	@commands.command(name='set-role')
+	@commands.has_permissions(manage_roles=True)
+	async def set_role(self, ctx, role_name, *, discord_role: discord.Role):
+		"""Set the given role to correspond to a discord role on your server.
+		All members with that role will get its permissions.
+		"""
+		role_name = role_name.lower()
+		if role_name not in {'verified', 'moderator'}:
+			await ctx.send('Invalid role specified.')
+			return
+
+		if not discord_role < ctx.author.top_role and not ctx.author.guild_permissions.administrator:
 			await ctx.send('You may only configure roles lower than your highest role on this server.')
+			return
 
-		await self.db.set_role(role_name, role.id, guild_id=ctx.guild.id)
+		await self.db.set_role(role_name, discord_role.id, guild_id=ctx.guild.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
-	@commands.command(name='set-verified-role')
+	@commands.command(name='unset-role')
 	@commands.has_permissions(manage_roles=True)
-	async def set_verified_role(self, ctx, *, verified_role: discord.Role):
-		"""Set the verified role for your server. All people with this role will get verified permissions."""
-		await self.set_role(ctx, 'verified', verified_role)
-
-	@commands.command(name='set-moderator-role')
-	@commands.has_permissions(manage_roles=True)
-	async def set_moderator_role(self, ctx, *, moderator_role: discord.Role):
-		"""Set the moderator role for your server. All people with this role will get moderator permissions."""
-		await self.set_role(ctx, 'moderator', moderator_role)
-
 	async def unset_role(self, ctx, role_name):
+		"""Clear the given role on your server. Nobody will get the permissions of that role."""
+		role_name = role_name.lower()
+		# it's very important that this role name gets validated to avoid SQL injection
+		if role_name not in {'verified', 'moderator'}:
+			await ctx.send('Invalid role specified.')
+			return
+
 		roles = await self.db.get_guild_roles(ctx.guild.id)
 		attr = role_name + '_role'
 		if not roles or not roles[attr]:
@@ -86,25 +107,67 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 			return
 
 		role = ctx.guild.get_role(roles[attr])
-		# allow anyone to clear a deleted role
-		if not role or role < ctx.author.top_role or ctx.guild.owner == ctx.author:
+		if not role or role < ctx.author.top_role:  # allow anyone to clear a deleted role
 			await self.db.set_role(role_name, None, guild_id=ctx.guild.id)
 			await ctx.message.add_reaction(self.bot.config['success_emoji'])
 			return
 
 		await ctx.send('You may only configure roles lower than your highest role on this server.')
 
-	@commands.command(name='unset-verified-role')
-	@commands.has_permissions(manage_roles=True)
-	async def unset_verified_role(self, ctx):
-		"""Clear the verified role for your server. Nobody will get verified permissions."""
-		await self.unset_role(ctx, 'verified')
+	@commands.command(name='set-role-permissions')
+	async def set_role_permissions(self, ctx, role_name, permissions: PageAccessLevelConverter):
+		"""Set the permissions that people of a certain role (or everyone) gets by default.
 
-	@commands.command(name='unset-moderator-role')
-	@commands.has_permissions(manage_roles=True)
-	async def unset_moderator_role(self, ctx):
-		"""Clear the moderator role for your server. Nobody will get moderator permissions."""
-		await self.unset_role(ctx, 'moderator')
+		For the role argument you may pass either "everyone", "verified", or "moderator".
+		"""
+		role_name = role_name.lower()
+		if role_name not in {'everyone', 'verified', 'moderator'}:
+			await ctx.send('Invalid role specified.')
+			return
+
+		roles = await self.db.get_guild_roles(ctx.guild.id)
+
+		if role_name != 'everyone' and not roles.get(f'{role_name}_role'):
+			await ctx.send(
+				f'{role_name.title()} role not set. Use the {ctx.prefix}set-role command to set it up.')
+			return
+
+		role_names = ['everyone', 'verified', 'moderator']
+		highest_role = self.db.member_role(ctx.author, roles)
+		i = role_names.index(highest_role)
+		editable_roles = set(role_names[:i])  # allow editing all roles up to highest
+		uneditable_roles = role_names[i:]
+
+		perms = await self.db.get_default_permissions(ctx.guild.id)
+		role = ctx.guild.default_role if role_name == 'everyone' else ctx.guild.get_role(roles[f'{role_name}_role'])
+
+		if not permissions <= perms.get(highest_role, perms.get('everyone', PageAccessLevel.edit)):
+			await ctx.send('You may not grant permissions you do not have.')
+			return
+
+		author_perms = ctx.author.guild_permissions
+
+		if (
+			author_perms.administrator
+			# sometimes the role doesn't exist in the server anymore
+			# in this case we need some sort of baseline guild permission to allow them to edit it
+			or (author_perms.manage_roles and not role)
+			or (role_name in editable_roles)
+			or (role and (
+				(author_perms.manage_roles and role < ctx.author.top_role)  # whether they can edit the role in the UI
+				or (not role.is_default and ctx.author._roles.has(role.id))))  # do they have the role
+		):
+			await self.db.set_default_permissions(role_name, permissions, guild_id=ctx.guild.id)
+			await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		else:
+			if role_name == 'everyone':
+				await ctx.send(
+					'You must have the verified or moderator role '
+					'or the Manage Roles permissions to edit the default permissions.')
+				return
+			await ctx.send(
+				f'You must have one of these roles: {", ".join(uneditable_roles)}'
+				' or have Manage Roles permissions to edit this role.')
 
 	@staticmethod
 	def format_role(guild, role_id):
