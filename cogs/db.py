@@ -43,60 +43,58 @@ class Database(commands.Cog):
 		return attrdict(row)
 
 	async def get_page_revisions(self, guild_id, title):
-		async for row in self.cursor("""
-			SELECT *
-			FROM pages INNER JOIN revisions USING (page_id)
-			WHERE
-				guild = $1
-				AND LOWER(title) = LOWER($2)
-			ORDER BY revision_id DESC
-		""", guild_id, title):
-			yield row
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			async for row in conn.cursor("""
+				SELECT *
+				FROM pages INNER JOIN revisions USING (page_id)
+				WHERE
+					guild = $1
+					AND LOWER(title) = LOWER($2)
+				ORDER BY revision_id DESC
+			""", guild_id, title):
+				yield row
 
 	async def get_all_pages(self, guild_id):
 		"""return an async iterator over all pages for the given guild"""
-		async for row in self.cursor("""
-			SELECT *
-			FROM
-				pages
-				INNER JOIN revisions
-					ON pages.latest_revision = revisions.revision_id
-			WHERE guild = $1
-			ORDER BY LOWER(title) ASC
-		""", guild_id):
-			yield row
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			async for row in conn.cursor("""
+				SELECT *
+				FROM
+					pages
+					INNER JOIN revisions
+						ON pages.latest_revision = revisions.revision_id
+				WHERE guild = $1
+				ORDER BY LOWER(title) ASC
+			""", guild_id):
+				yield row
 
 	async def get_recent_revisions(self, guild_id, cutoff: datetime.datetime):
 		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
-		async for row in self.cursor("""
-			SELECT title, revision_id, page_id, author, revised
-			FROM revisions INNER JOIN pages USING (page_id)
-			WHERE guild = $1 AND revised > cutoff
-			ORDER BY revised DESC
-		""", guild_id, cutoff):
-			yield row
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			async for row in conn.cursor("""
+				SELECT title, revision_id, page_id, author, revised
+				FROM revisions INNER JOIN pages USING (page_id)
+				WHERE guild = $1 AND revised > cutoff
+				ORDER BY revised DESC
+			""", guild_id, cutoff):
+				yield row
 
 	async def search_pages(self, guild_id, query):
 		"""return an async iterator over all pages whose title is similar to query"""
-		async for row in self.cursor("""
-			SELECT *
-			FROM
-				pages
-				INNER JOIN revisions
-					ON pages.latest_revision = revisions.revision_id
-			WHERE
-				guild = $1
-				AND title % $2
-			ORDER BY similarity(title, $2) DESC
-			LIMIT 100
-		""", guild_id, query):
-			yield row
-
-	async def cursor(self, query, *args):
-		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			async for row in conn.cursor(query, *args):
-				yield attrdict(row)
+			async for row in conn.cursor("""
+				SELECT *
+				FROM
+					pages
+					INNER JOIN revisions
+						ON pages.latest_revision = revisions.revision_id
+				WHERE
+					guild = $1
+					AND title % $2
+				ORDER BY similarity(title, $2) DESC
+				LIMIT 100
+			""", guild_id, query):
+				yield row
 
 	async def get_individual_revisions(self, guild_id, revision_ids):
 		"""return a list of page revisions for the given guild.
