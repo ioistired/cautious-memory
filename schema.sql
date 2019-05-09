@@ -22,3 +22,19 @@ CREATE TABLE IF NOT EXISTS revisions(
 	author BIGINT NOT NULL,
 	content VARCHAR(2000) NOT NULL,
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS role_permissions(
+	role BIGINT PRIMARY KEY
+	-- not strictly necessary but it lets us delete by guild
+	guild BIGINT NOT NULL,
+	permissions BIGINT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS page_permissions(
+	page_id INTEGER REFERENCES pages NOT NULL ON DELETE CASCADE,
+	role BIGINT REFERENCES role_permissions NOT NULL ON DELETE CASCADE,
+	-- permissions to allow which overwrite role permissions
+	allow BIGINT NOT NULL,
+	-- permissions to deny
+	deny BIGINT NOT NULL,
+
+	PRIMARY KEY (page_id, role));
