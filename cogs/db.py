@@ -16,15 +16,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
-from enum import IntEnum
 
 import asyncpg
-import discord
 from discord.ext import commands
 
 from utils import attrdict, errors
-
-PageAccessLevel = IntEnum('PageAccessLevel', 'none view edit delete')
 
 class Database(commands.Cog):
 	def __init__(self, bot):
@@ -174,117 +170,26 @@ class Database(commands.Cog):
 		if not rows_updated:
 			raise errors.PageNotFoundError(title)
 
-	async def get_guild_roles(self, guild_id, *, connection=None):
-		row = await (connection or self.bot.pool).fetchrow("""
-			SELECT verified_role, moderator_role FROM guild_settings WHERE guild = $1
-		""", guild_id)
-		return row and attrdict(row)
-
-	async def set_role(self, role_name, role_id, *, guild_id):
-		"""Set the role ID for the given role name (either 'verified' or 'moderator')
-		To unset it, pass None as the role_id.
+	async def set_guild_roles(self, guild_id, *, moderator_role_id, verified_role_id):
 		"""
-		async with self.bot.pool.acquire() as conn:
-			try:
-				await conn.execute(f"""
-					INSERT INTO guild_settings (guild, {role_name}_role)
-					VALUES ($1, $2)
-					ON CONFLICT (guild) DO UPDATE SET
-					{role_name}_role = EXCLUDED.{role_name}_role
-				""", guild_id, role_id)
-			except asyncpg.CheckViolationError:
-				# we tried to set both roles to NULL
-				await self.clear_guild_roles(guild_id, connection=conn)
+		set the role IDs for the Moderator and Verified status
+		to unset a role, set the respective role to None.
+		"""
 
-	async def clear_guild_roles(self, guild_id, *, connection=None):
-		"""Unset the verified and moderator roles for the given guild."""
-		await (connection or self.bot.pool).execute('DELETE FROM guild_settings WHERE guild = $1', guild_id)
-
-	async def get_page_permissions(self, title, *, guild_id, connection=None):
-		row = await (connection or self.bot.pool).fetchrow("""
-			SELECT page_id, guild, title, everyone_perms, verified_perms, moderator_perms
-			FROM effective_page_permissions
-			WHERE guild = $1 AND LOWER(title) = LOWER($2)
-		""", guild_id, title)
-		if row is None:
-			raise errors.PageNotFoundError(title)
-		return self.convert_page_permissions(attrdict(row))
-
-	async def get_page_permissions_for(self, title, *, guild_id, member: discord.Member):
-		async with self.bot.pool.acquire() as conn:
-			guild_roles = await self.get_guild_roles(guild_id, connection=conn)
-			page_perms = await self.get_page_permissions(title, guild_id=guild_id, connection=conn)
-
-		# I *could* change the parameter to type Guild, but I want to keep it consistent with the other methods
-		if member == self.bot.get_guild(guild_id).owner:
-			return PageAccessLevel.delete
-
-		if guild_roles is None:
-			return page_perms.everyone_perms
-		return page_perms[self.member_role(member, guild_roles) + '_perms']
-
-	@staticmethod
-	def member_role(member, guild_roles):
-		if guild_roles.moderator_role is not None and member._roles.has(guild_roles.moderator_role):
-			return 'moderator'
-		if guild_roles.verified_role is not None and member._roles.has(guild_roles.verified_role):
-			return 'verified'
-		return 'everyone'
-
-	async def set_page_permissions(
-		self,
-		title,
-		*,
-		guild_id,
-		everyone_perms: PageAccessLevel = PageAccessLevel.edit,
-		verified_perms: PageAccessLevel = PageAccessLevel.edit,
-		moderator_perms: PageAccessLevel = PageAccessLevel.edit,
-	):
-		tag = await self.bot.pool.execute("""
-			WITH page AS (
-				SELECT page_id
-				FROM pages
-				WHERE guild = $1 AND LOWER(title) = LOWER($2)
-			)
-			INSERT INTO page_permissions (page_id, everyone_perms, verified_perms, moderator_perms)
-			VALUES ((SELECT page_id FROM page), $3::access_level, $4::access_level, $5::access_level)
-			ON CONFLICT (page_id) DO UPDATE
-			SET
-				everyone_perms = EXCLUDED.everyone_perms,
-				verified_perms = EXCLUDED.verified_perms,
-				moderator_perms = EXCLUDED.moderator_perms
-		""", guild_id, title, everyone_perms.name, verified_perms.name, moderator_perms.name)
-		command_name, oid, rows_updated = tag.split()
-		if not int(rows_updated):
-			raise errors.PageNotFoundError(title)
-
-	async def clear_page_permissions(self, title, *, guild_id):
-		await self.bot.pool.execute("""
-			WITH page AS (
-				SELECT page_id
-				FROM pages
-				WHERE guild = $1 AND LOWER(title) = LOWER($2)
-			)
-			DELETE FROM page_permissions WHERE page_id = (SELECT page_id FROM page)
-		""", guild_id, title)
-
-	async def get_default_permissions(self, guild_id):
-		row = await self.bot.pool.fetchrow('SELECT * FROM guild_default_permissions WHERE guild = $1', guild_id)
-		if row is None:
-			return attrdict.fromkeys(['default_perms', 'verified_perms', 'moderator_perms'], PageAccessLevel.edit)
-		return attrdict(row)
-
-	async def set_default_permissions(self, role_name, permissions: PageAccessLevel, *, guild_id):
-		await self.bot.pool.execute(f"""
-			INSERT INTO guild_default_permissions (guild, {role_name}_perms)
-			VALUES ($1, $2::access_level)
-			ON CONFLICT (guild) DO UPDATE
-			SET {role_name}_perms = EXCLUDED.{role_name}_perms
-		""", guild_id, permissions.name)
-
-	async def clear_default_permissions(self, guild_id):
-		"""reset the default permissions for a guild to the default default permissions"""
-		await self.bot.pool.execute('DELETE FROM guild_default_permissions WHERE guild = $1', guild_id)
+		if moderator_role_id is None and verified_role_id is None:
+			await self.bot.pool.execute("""
+				DELETE FROM guild_settings
+				WHERE guild = $1
+			""", guild_id)
+		else:
+			await self.bot.pool.execute("""
+				INSERT INTO guild_settings (guild, moderator_role, verified_role)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (guild)
+				DO UPDATE SET
+					moderator_role = EXCLUDED.moderator_role,
+					verified_role = EXCLUDED.verified_role
+			""", guild_id, moderator_role_id, verified_role_id)
 
 	async def _create_revision(self, connection, page_id, content, author_id):
 		await connection.execute("""
@@ -297,12 +202,6 @@ class Database(commands.Cog):
 			SET latest_revision = (SELECT revision_id FROM revision)
 			WHERE page_id = $1
 		""", page_id, author_id, content)
-
-	@staticmethod
-	def convert_page_permissions(row):
-		for column in 'everyone_perms', 'verified_perms', 'moderator_perms':
-			row[column] = PageAccessLevel[row[column]]
-		return row
 
 def setup(bot):
 	bot.add_cog(Database(bot))

@@ -24,6 +24,10 @@ attrdict = type('attrdict', (dict,), {
 	'__setattr__': dict.__setitem__,
 	'__delattr__': dict.__delitem__})
 
+def mangle(obj, attr):
+	cls = obj if isinstance(obj, type) else type(obj)
+	return '_' + cls.__name__.lstrip('_') + attr
+
 def escape_code_blocks(s):
 	return s.replace('`', '`\N{zero width non-joiner}')
 
