@@ -71,7 +71,7 @@ class Wiki(commands.Cog):
 
 		await PaginatorInterface(ctx, paginator).begin()
 
-	@commands.command(name='recent-revisions')
+	@commands.command(name='recent-revisions', aliases=['recent', 'recent-changes'])
 	async def recent_revisions(self, ctx):
 		"""Shows you a list of the most recent revisions to pages on this server.
 
