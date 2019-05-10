@@ -15,10 +15,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import datetime
 import difflib
 import io
 import typing
 
+from ben_cogs.misc import Misc
+natural_time = Misc.natural_time
 import discord
 from discord.ext import commands
 from jishaku.paginators import WrappedPaginator, PaginatorInterface
@@ -75,12 +78,15 @@ class Wiki(commands.Cog):
 		Revisions shown were made within the past two weeks.
 		"""
 		paginator = WrappedPaginator(prefix='', suffix='')
-		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=2)
+		cutoff_delta = datetime.timedelta(weeks=2)
+		cutoff = datetime.datetime.utcnow() - cutoff_delta
+
 		async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff):
 			paginator.add_line(self.revision_summary(ctx.guild, revision, include_title=True))
 
 		if not paginator.pages:
-			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
+			delta = natural_time(cutoff_delta.total_seconds())
+			await ctx.send(f'No pages have been created or revised within the past {delta}.')
 			return
 
 		await PaginatorInterface(ctx, paginator).begin()
@@ -197,10 +203,10 @@ class Wiki(commands.Cog):
 	@staticmethod
 	def revision_summary(guild, revision, *, include_title=False):
 		author = guild.get_member(revision.author) or f'unknown user with ID {revision.author}'
-		suffix = f'was revised by {author} at {utils.format_datetime(revision.revised)}'
+		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		if include_title:
-			return f'{revision.title} {suffix}'
-		return f'#{revision.revision_id} {suffix}'
+			return f'{revision.title} was revised by {author_at}'
+		return f'#{revision.revision_id}, revised by {author_at}'
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))

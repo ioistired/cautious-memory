@@ -71,7 +71,7 @@ class Database(commands.Cog):
 		async for row in self.cursor("""
 			SELECT title, revision_id, page_id, author, revised
 			FROM revisions INNER JOIN pages USING (page_id)
-			WHERE guild = $1 AND revised > cutoff
+			WHERE guild = $1 AND revised > $2
 			ORDER BY revised DESC
 		""", guild_id, cutoff):
 			yield row
