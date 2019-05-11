@@ -17,6 +17,8 @@
 
 import datetime
 import enum
+import operator
+import typing
 
 import asyncpg
 import discord
@@ -206,23 +208,23 @@ class Database(commands.Cog):
 	async def set_role_permissions(self, role_id, permissions: Permissions):
 		await self.bot.pool.execute("""
 			INSERT INTO role_permissions(role, permissions)
-			VALUES ($1, $2, $3)
+			VALUES ($1, $2)
 			ON CONFLICT (role) DO UPDATE SET
 				permissions = EXCLUDED.permissions
-		""", guild_id, role_id, permissions.value)
+		""", role_id, permissions.value)
 
 	# no unset_role_permissions because unset means to give the default permissions
 	# to deny all perms just use deny_role_permissions
 
-	async def allow_role_permissions(self, guild_id, role_id, new_perms: Permissions):
+	async def allow_role_permissions(self, role_id, new_perms: Permissions):
 		await self.bot.pool.execute("""
-			INSERT INTO role_permissions(guild, role, permissions)
-			VALUES ($1, $2, $4)
+			INSERT INTO role_permissions(role, permissions)
+			VALUES ($1, $3)
 			ON CONFLICT (role) DO UPDATE SET
-				permissions = permissions | $3
-		""", guild_id, role_id, new_permissions, (permissions | Permissions.default))
+				permissions = role_permissions.permissions | $2
+		""", role_id, new_perms.value, (new_perms | Permissions.default).value)
 
-	async def deny_role_permissions(self, guild_id, role_id, perms):
+	async def deny_role_permissions(self, role_id, perms):
 		"""revoke a set of permissions from a role"""
 		...
 
