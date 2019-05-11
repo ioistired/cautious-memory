@@ -219,7 +219,10 @@ class Database(commands.Cog):
 		return Permissions(perms)
 
 	async def get_role_permissions(self, role_id):
-		...
+		perms = await self.bot.pool.fetchval('SELECT permissions FROM role_permissions WHERE role = $1', role_id)
+		if perms is None:
+			return Permissions.default
+		return Permissions(perms)
 
 	async def set_role_permissions(self, role_id, permissions: Permissions):
 		await self.bot.pool.execute("""
