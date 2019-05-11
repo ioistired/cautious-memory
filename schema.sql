@@ -24,8 +24,6 @@ CREATE TABLE IF NOT EXISTS revisions(
 
 CREATE TABLE IF NOT EXISTS role_permissions(
 	role BIGINT PRIMARY KEY,
-	-- not strictly necessary but it lets us delete by guild
-	guild BIGINT NOT NULL,
 	permissions BIGINT NOT NULL);
 
 CREATE TABLE IF NOT EXISTS page_permissions(

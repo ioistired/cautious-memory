@@ -16,15 +16,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
+import enum
 
 import asyncpg
+import discord
 from discord.ext import commands
 
 from utils import attrdict, errors
 
+class Permissions(enum.Flag):
+	none = 0
+	view = enum.auto()
+	rename = enum.auto()
+	edit = enum.auto()
+	delete = enum.auto()
+	manage_permissions = enum.auto()
+	default = view | rename | edit
+
 class Database(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+
+	## Pages
 
 	async def get_page(self, guild_id, title):
 		row = await self.bot.pool.fetchrow("""
@@ -181,6 +194,64 @@ class Database(commands.Cog):
 			SET latest_revision = (SELECT revision_id FROM revision)
 			WHERE page_id = $1
 		""", page_id, author_id, content)
+
+	## Permissions
+
+	async def permissions_for(self, member: discord.Member, title):
+		...
+
+	async def get_role_permissions(self, role_id):
+		...
+
+	async def set_role_permissions(self, role_id, permissions: Permissions):
+		await self.bot.pool.execute("""
+			INSERT INTO role_permissions(role, permissions)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (role) DO UPDATE SET
+				permissions = EXCLUDED.permissions
+		""", guild_id, role_id, permissions.value)
+
+	# no unset_role_permissions because unset means to give the default permissions
+	# to deny all perms just use deny_role_permissions
+
+	async def allow_role_permissions(self, guild_id, role_id, new_perms: Permissions):
+		await self.bot.pool.execute("""
+			INSERT INTO role_permissions(guild, role, permissions)
+			VALUES ($1, $2, $4)
+			ON CONFLICT (role) DO UPDATE SET
+				permissions = permissions | $3
+		""", guild_id, role_id, new_permissions, (permissions | Permissions.default))
+
+	async def deny_role_permissions(self, guild_id, role_id, perms):
+		"""revoke a set of permissions from a role"""
+		...
+
+	async def get_page_overwrites(self, guild_id, title) -> typing.Tuple[Permissions, Permissions]:
+		"""get the allowed and denied permissions for a particular page"""
+		...
+
+	async def set_page_overwrites(self, guild_id, title, role_id, allow_permissions: Permissions = None, deny_permissions: Permissions = None):
+		"""set the allowed, denied, or both permissions for a particular page and role"""
+		...
+
+	async def unset_page_overwrites(self, guild_id, title, role_id):
+		"""remove all of the allowed and denied overwrites for a page"""
+		...
+
+	async def allow_page_permissions(self, guild_id, title, role_id, new_perms):
+		"""add permissions to the set of "allow" overwrites for a page"""
+		...
+
+	async def deny_page_permissions(self, guild_id, title, role_id, perms):
+		"""add permissions to the set of "deny" overwrites for a page"""
+		...
+
+	async def unset_page_permissions(self, guild_id, title, role_id, perms):
+		"""remove a permission from either the allow or deny overwrites for a page
+
+		This is equivalent to the "grey check" in Discord's UI.
+		"""
+		...
 
 def setup(bot):
 	bot.add_cog(Database(bot))
