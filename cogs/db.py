@@ -200,7 +200,23 @@ class Database(commands.Cog):
 	## Permissions
 
 	async def permissions_for(self, member: discord.Member, title):
-		...
+		roles = list(map(operator.attrgetter('id'), member.roles)) + [member.guild.id]
+		perms = await self.bot.pool.fetchval("""
+			WITH page_id AS (
+				SELECT page_id
+				FROM pages
+				WHERE guild = $1 AND LOWER(title) = LOWER($2)
+			)
+			SELECT bit_or(permissions) | bit_or(allow) & ~bit_or(deny)
+			FROM role_permissions LEFT JOIN page_permissions USING (role)
+			WHERE
+				role = ANY ($3)
+				AND page_id = (SELECT * FROM page_id)
+				OR page_id IS NULL  -- in case there's no page permissions for some role
+		""", member.guild.id, title, roles)
+		if perms is None:
+			return Permissions.default
+		return Permissions(perms)
 
 	async def get_role_permissions(self, role_id):
 		...
