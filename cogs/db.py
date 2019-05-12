@@ -360,8 +360,8 @@ class Database(commands.Cog):
 			INSERT INTO page_permissions (page_id, role, allow, deny)
 			VALUES ((SELECT * FROM page_id), $3, $4, $5)
 			ON CONFLICT (page_id, role) DO UPDATE SET
-				allow = page_permissions.allow | EXCLUDED.allow,
-				deny = page_permissions.deny | EXCLUDED.deny
+				allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
+				deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
 			RETURNING allow, deny
 		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value)))
 
