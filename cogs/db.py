@@ -270,13 +270,13 @@ class Database(commands.Cog):
 			WHERE role = $1
 		""", role_id))
 
-	async def set_role_permissions(self, role_id, permissions: Permissions):
+	async def set_role_permissions(self, role_id, perms: Permissions):
 		await self.bot.pool.execute("""
 			INSERT INTO role_permissions(role, permissions)
 			VALUES ($1, $2)
 			ON CONFLICT (role) DO UPDATE SET
 				permissions = EXCLUDED.permissions
-		""", role_id, permissions.value)
+		""", role_id, perms.value)
 
 	# no unset_role_permissions because unset means to give the default permissions
 	# to deny all perms just use deny_role_permissions
@@ -292,7 +292,7 @@ class Database(commands.Cog):
 
 	async def deny_role_permissions(self, role_id, perms):
 		"""revoke a set of permissions from a role"""
-		new_perms = Permissions(await self.bot.pool.fetchval("""
+		return Permissions(await self.bot.pool.fetchval("""
 			UPDATE role_permissions
 			SET permissions = role_permissions.permissions & ~$2::INTEGER
 			WHERE role = $1
@@ -310,6 +310,7 @@ class Database(commands.Cog):
 
 	async def set_page_overwrites(
 		self,
+		*,
 		guild_id,
 		title,
 		role_id,
@@ -317,6 +318,10 @@ class Database(commands.Cog):
 		deny_perms: Permissions = Permissions.none
 	):
 		"""set the allowed, denied, or both permissions for a particular page and role"""
+		if new_allow_perms & new_deny_perms != Permissions.none:
+			# don't allow someone to both deny and allow a permission
+			raise ValueError('allowed and denied permissions must not intersect')
+
 		await self.bot.pool.execute("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			INSERT INTO page_permissions (page_id, role, allow, deny)
@@ -326,7 +331,7 @@ class Database(commands.Cog):
 				deny = EXCLUDED.deny
 		""", guild_id, title, role_id, allow_perms.value, deny_perms.value)
 
-	async def unset_page_overwrites(self, guild_id, title, role_id):
+	async def unset_page_overwrites(self, *, guild_id, title, role_id):
 		"""remove all of the allowed and denied overwrites for a page"""
 		await self.bot.pool.execute("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
@@ -338,6 +343,7 @@ class Database(commands.Cog):
 
 	async def add_page_permissions(
 		self,
+		*,
 		guild_id,
 		title,
 		role_id,
@@ -345,6 +351,10 @@ class Database(commands.Cog):
 		new_deny_perms: Permissions = Permissions.none
 	):
 		"""add permissions to the set of "allow" overwrites for a page"""
+		if new_allow_perms & new_deny_perms != Permissions.none:
+			# don't allow someone to both deny and allow a permission
+			raise ValueError('allowed and denied permissions must not intersect')
+
 		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			INSERT INTO page_permissions (page_id, role, allow, deny)
@@ -355,12 +365,12 @@ class Database(commands.Cog):
 			RETURNING allow, deny
 		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value)))
 
-	async def unset_page_permissions(self, guild_id, title, role_id, perms):
+	async def unset_page_permissions(self, *, guild_id, title, role_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
 
 		This is equivalent to the "grey check" in Discord's UI.
 		"""
-		row = tuple(map(Permissions, await self.bot.pool.fetchrow("""
+		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			UPDATE page_permissions SET
 				allow = allow & ~$3::INTEGER,
