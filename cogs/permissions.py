@@ -87,9 +87,51 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		new_perms = await self.db.deny_role_permissions(role.id, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
+	@commands.command(name='grant-page')
+	async def grant_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+		"""Grant permissions to a certain role on a certain page.
+
+		Their permissions on this page will override any permissions given to them by their role.
+		"""
+		perms = functools.reduce(operator.or_, permissions, Permissions.none)
+		new_allow, new_deny = await self.db.add_page_permissions(
+			guild_id=ctx.guild.id, role_id=role.id, title=title, new_allow_perms=perms)
+		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+
+	@commands.command(name='deny-page')
+	async def deny_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+		"""Deny permissions to a certain role on a certain page.
+
+		Their permissions on this page will override any permissions given to them by their role.
+		"""
+		perms = functools.reduce(operator.or_, permissions, Permissions.none)
+		new_allow, new_deny = await self.db.add_page_permissions(
+			guild_id=ctx.guild.id, role_id=role.id, title=title, new_deny_perms=perms)
+		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+
+	@commands.command(name='uncheck-page')
+	async def unset_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+		""""Uncheck" (neither allow nor deny) certain permissions for a role on a page.
+
+		This is equivalent to the "grey check mark" in Discord.
+		"""
+		perms = functools.reduce(operator.or_, permissions, Permissions.none)
+		new_allow, new_deny = await self.db.unset_page_permissions(
+			guild_id=ctx.guild.id, role_id=role.id, title=title, perms=perms)
+		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+
 	def new_permissions_message(self, role, new_perms):
 		joined = inflect.join([perm.name for perm in new_perms])
 		response = f"""{self.bot.config["success_emoji"]} @{role}'s new permissions: {joined}"""
+		return discord.utils.escape_mentions(response)
+
+	def new_overwrites_message(self, role, title, new_allow, new_deny):
+		joined_allow = inflect.join([perm.name for perm in new_allow])
+		joined_deny = inflect.join([perm.name for perm in new_deny])
+		response = (
+			f"""{self.bot.config["success_emoji"]} @{role}'s new permissions on {title}:\n"""
+			f'Allowed: {joined_allow}\n'
+			f'Denied: {joined_deny}')
 		return discord.utils.escape_mentions(response)
 
 def setup(bot):
