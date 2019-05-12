@@ -16,6 +16,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from discord.ext.commands import CommandError, UserInputError
+import inflect
+inflect = inflect.engine()
 
 class CautiousMemoryError(CommandError):
 	"""Generic error with the bot. This can be used to catch all bot errors."""
@@ -34,8 +36,8 @@ class PageNotFoundError(PageError):
 		self.name = name
 		super().__init__(f'A page called {name} does not exist.')
 
-class PermissionDeniedError(PageError):
-	"""Raised when the user tries to modify a locked page and they are not a moderator."""
-	def __init__(self):
-		super().__init__(f"Cannot modify that page because it is locked and you are not a moderator.")
-
+class MissingPermissionsError(PageError):
+	"""Raised when the user tries to perform an action they do not have permissions for."""
+	def __init__(self, permissions_needed):
+		joined = inflect.join([permission.name for permission in permissions_needed])
+		super().__init__(f'Missing permissions to perform this action. You need all of these permissions: {joined}.')

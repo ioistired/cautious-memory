@@ -13,10 +13,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import functools, operator
+
 import discord
 from discord.ext import commands
+import inflect
+inflect = inflect.engine()
 
 from cogs.db import Permissions
+from utils.errors import MissingPermissionsError
+
+class UserEditableRole(commands.Converter):
+	@classmethod
+	async def convert(cls, ctx, arg):
+		role = await commands.RoleConverter().convert(ctx, arg)
+		if ctx.author.guild_permissions.administrator:
+			return role
+		highest_role = await ctx.cog.db.highest_manage_permissions_role(ctx.author)
+		if role < highest_role:
+			return role
+		raise MissingPermissionsError(Permissions.manage_permissions)
 
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""Commands that let you manage the permissions on pages.
@@ -53,6 +69,18 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	def __init__(self, bot):
 		self.bot = bot
 		self.db = self.bot.get_cog('Database')
+
+	def cog_check(self, ctx):
+		return bool(ctx.guild)
+
+	@commands.command(name='allow', aliases=['grant'])
+	async def allow_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
+		"""Grant wiki permissions to a Discord role."""
+		perms = functools.reduce(operator.or_, permissions, Permissions.none)
+		new_permissions = await self.db.allow_role_permissions(role.id, perms)
+		joined = inflect.join([permission.name for permission in new_permissions])
+		response = f"""{self.bot.config["success_emoji"]} @{role}'s new permissions: {joined}"""
+		await ctx.send(discord.utils.escape_mentions(response))
 
 def setup(bot):
 	bot.add_cog(WikiPermissions(bot))

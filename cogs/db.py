@@ -23,6 +23,8 @@ import typing
 import asyncpg
 import discord
 from discord.ext import commands
+import inflect
+inflect = inflect.engine()
 
 from utils import attrdict, errors
 
@@ -35,12 +37,25 @@ class Permissions(enum.Flag):
 	manage_permissions = enum.auto()
 	default = view | rename | edit
 
+	def __iter__(self):
+		for perm in type(self).__members__.values():
+			if perm is not self.default and perm is not self.none and perm in self:
+				yield perm
+
+	@classmethod
+	async def convert(cls, ctx, arg):
+		try:
+			return cls.__members__[arg.lower().replace('-', '_')]
+		except KeyError:
+			valid_perms = inflect.join(list(cls.__members__), conj='or')
+			raise commands.BadArgument(f'Invalid permission specified. Try one of these: {valid_perms}.')
+
 # Permissions.__new__ is replaced after class definition
 # so to replace that definition, we must also do so after class definition, not during
 def __new__(cls, value=None):
 	if value is None:
 		return cls.none
-	return super().__new__(cls, value)
+	return enum.Flag.__new__(cls, value)
 
 Permissions.__new__ = __new__
 del __new__
@@ -223,6 +238,30 @@ class Database(commands.Cog):
 		if perms is None:
 			return Permissions.default
 		return Permissions(perms)
+
+	async def member_permissions(self, member: discord.Member):
+		roles = list(map(operator.attrgetter('id'), member.roles))
+		perms = await self.bot.pool.fetchval("""
+			SELECT bit_or(permissions)
+			FROM role_permissions
+			WHERE role = ANY ($1)
+		""", roles)
+		if perms is None:
+			return Permissions.default
+		return Permissions(perms)
+
+	async def highest_manage_permissions_role(self, member: discord.Member) -> typing.Optional[discord.Role]:
+		"""return the highest role that this member has that allows them to edit permissions"""
+		member_roles = list(map(operator.attrgetter('id'), member.roles))
+		manager_roles = [
+			member.guild.get_role(row[0])
+			for row in await self.bot.pool.fetch("""
+				SELECT role
+				FROM role_permissions
+				WHERE role = ANY ($1) AND role & $2 != 0
+			""", member_roles, Permissions.manage_permissions.value)]
+		manager_roles.sort()
+		return manager_roles[-1] if manager_roles else None
 
 	async def get_role_permissions(self, role_id):
 		return Permissions(await self.bot.pool.fetchval("""
