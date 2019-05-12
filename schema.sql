@@ -34,4 +34,6 @@ CREATE TABLE IF NOT EXISTS page_permissions(
 	-- permissions to deny
 	deny INTEGER NOT NULL DEFAULT 0,
 
+	-- you may not allow and deny a permission
+	CHECK (allow & deny = 0),
 	PRIMARY KEY (page_id, role));
