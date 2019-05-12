@@ -35,6 +35,16 @@ class Permissions(enum.Flag):
 	manage_permissions = enum.auto()
 	default = view | rename | edit
 
+# Permissions.__new__ is replaced after class definition
+# so to replace that definition, we must also do so after class definition, not during
+def __new__(cls, value=None):
+	if value is None:
+		return cls.none
+	return super().__new__(cls, value)
+
+Permissions.__new__ = __new__
+del __new__
+
 class Database(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -215,10 +225,11 @@ class Database(commands.Cog):
 		return Permissions(perms)
 
 	async def get_role_permissions(self, role_id):
-		perms = await self.bot.pool.fetchval('SELECT permissions FROM role_permissions WHERE role = $1', role_id)
-		if perms is None:
-			return Permissions.default
-		return Permissions(perms)
+		return Permissions(await self.bot.pool.fetchval("""
+			SELECT permissions
+			FROM role_permissions
+			WHERE role = $1
+		""", role_id))
 
 	async def set_role_permissions(self, role_id, permissions: Permissions):
 		await self.bot.pool.execute("""
@@ -232,20 +243,22 @@ class Database(commands.Cog):
 	# to deny all perms just use deny_role_permissions
 
 	async def allow_role_permissions(self, role_id, new_perms: Permissions):
-		await self.bot.pool.execute("""
+		return Permissions(await self.bot.pool.fetchval("""
 			INSERT INTO role_permissions(role, permissions)
 			VALUES ($1, $3)
 			ON CONFLICT (role) DO UPDATE SET
 				permissions = role_permissions.permissions | $2
-		""", role_id, new_perms.value, (new_perms | Permissions.default).value)
+			RETURNING permissions
+		""", role_id, new_perms.value, (new_perms | Permissions.default).value))
 
 	async def deny_role_permissions(self, role_id, perms):
 		"""revoke a set of permissions from a role"""
-		await self.bot.pool.execute("""
+		new_perms = Permissions(await self.bot.pool.fetchval("""
 			UPDATE role_permissions
 			SET permissions = role_permissions.permissions & ~$2::INTEGER
 			WHERE role = $1
-		""", role_id, perms.value)
+			RETURNING permissions
+		""", role_id, perms.value))
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.List[typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
@@ -279,8 +292,10 @@ class Database(commands.Cog):
 		await self.bot.pool.execute("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			DELETE FROM page_permissions
-			WHERE page_id = (SELECT * FROM page_id)
-		""")
+			WHERE
+				page_id = (SELECT * FROM page_id)
+				AND role = $3
+		""", guild_id, title, role_id)
 
 	async def add_page_permissions(
 		self,
@@ -291,26 +306,28 @@ class Database(commands.Cog):
 		new_deny_perms: Permissions = Permissions.none
 	):
 		"""add permissions to the set of "allow" overwrites for a page"""
-		await self.bot.pool.execute("""
+		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			INSERT INTO page_permissions (page_id, role, allow, deny)
 			VALUES ((SELECT * FROM page_id), $3, $4, $5)
 			ON CONFLICT (page_id, role) DO UPDATE SET
 				allow = page_permissions.allow | EXCLUDED.allow,
 				deny = page_permissions.deny | EXCLUDED.deny
-		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value)
+			RETURNING allow, deny
+		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value)))
 
 	async def unset_page_permissions(self, guild_id, title, role_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
 
 		This is equivalent to the "grey check" in Discord's UI.
 		"""
-		await self.bot.pool.execute("""
+		row = tuple(map(Permissions, await self.bot.pool.fetchrow("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			UPDATE page_permissions SET
 				allow = allow & ~$3::INTEGER,
 				deny = deny & ~$3::INTEGER
-		""", guild_id, title, perms.value)
+			RETURNING allow, deny
+		""", guild_id, title, perms.value) or (None, None)))
 
 def setup(bot):
 	bot.add_cog(Database(bot))
