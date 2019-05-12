@@ -73,8 +73,8 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
 
-	@commands.command(name='allow', aliases=['grant'])
-	async def allow_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
+	@commands.command(name='grant')
+	async def grant_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
 		"""Grant wiki permissions to a Discord role."""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_permissions = await self.db.allow_role_permissions(role.id, perms)
