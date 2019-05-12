@@ -228,7 +228,7 @@ class Database(commands.Cog):
 		roles = list(map(operator.attrgetter('id'), member.roles)) + [member.guild.id]
 		perms = await self.bot.pool.fetchval("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
-			SELECT bit_or(permissions) | COALESCE(bit_or(allow), 0) & ~COALESCE(bit_or(deny), 0)
+			SELECT (bit_or(permissions) | COALESCE(bit_or(allow), 0)) & ~COALESCE(bit_or(deny), 0)
 			FROM role_permissions LEFT JOIN page_permissions USING (role)
 			WHERE
 				role = ANY ($3)
