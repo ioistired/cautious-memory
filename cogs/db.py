@@ -193,7 +193,7 @@ class Database(commands.Cog):
 				RETURNING revision_id
 			)
 			UPDATE pages
-			SET latest_revision = (SELECT revision_id FROM revision)
+			SET latest_revision = (SELECT * FROM revision)
 			WHERE page_id = $1
 		""", page_id, author_id, content)
 
@@ -202,11 +202,7 @@ class Database(commands.Cog):
 	async def permissions_for(self, member: discord.Member, title):
 		roles = list(map(operator.attrgetter('id'), member.roles)) + [member.guild.id]
 		perms = await self.bot.pool.fetchval("""
-			WITH page_id AS (
-				SELECT page_id
-				FROM pages
-				WHERE guild = $1 AND LOWER(title) = LOWER($2)
-			)
+			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			SELECT bit_or(permissions) | bit_or(allow) & ~bit_or(deny)
 			FROM role_permissions LEFT JOIN page_permissions USING (role)
 			WHERE
