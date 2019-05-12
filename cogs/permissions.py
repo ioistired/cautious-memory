@@ -21,8 +21,7 @@ from cogs.db import Permissions
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""Commands that let you manage the permissions on pages.
 
-	The permissions system for this bot works similarly to Discord's.
-	Each Discord role on your server can have additional permissions associated with it that
+	Each role on your server can have certain permissions associated with it that
 	are related to this bot. The permissions are as follows:
 	• View pages
 	• Edit pages
@@ -31,7 +30,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	• Delete pages
 	• Manage permissions
 
-	Each page can also have "permission overwrites", similarly to channel overwrites in Discord.
+	Each page can also have "permission overwrites", which override the permissions granted by a role.
 	For example, you could have a role called "Wiki Mod" have view, edit, rename and deletion permissions,
 	except on an important page where you could deny the deletion permission for them.
 
@@ -40,12 +39,12 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	2.) All of the "allowed" permission overwrites for that page are added to that member's permissions,
 	and all of the "denied" permission overwrites for that page are removed from them.
 
-	By default, nobody can edit the permissions of other wiki-associated roles except for server administrators.
+	By default, nobody can edit the wiki permissions of other roles except for server administrators.
 	This is to provide a higher level of security.
-	If you want to allow people with a certain wiki role to edit permissions of other wiki roles,
-	grant it the "Manage Permissions" permission.
+	If you want to allow people with a certain role to edit wiki permissions of other roles,
+	grant the role the "Manage Permissions" permission.
 
-	For high security, it is recommended to create two roles just above @‌everyone
+	For high security, it is recommended to create two roles.
 	One of them would serve as the "Wiki Admin", and it would get the "Manage Roles" permission so that it can grant
 	"Wiki Mod" to others.
 	"Wiki Admin" would get no wiki permissions.
