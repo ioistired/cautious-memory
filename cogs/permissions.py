@@ -77,10 +77,20 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	async def grant_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
 		"""Grant wiki permissions to a Discord role."""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
-		new_permissions = await self.db.allow_role_permissions(role.id, perms)
-		joined = inflect.join([permission.name for permission in new_permissions])
+		new_perms = await self.db.allow_role_permissions(role.id, perms)
+		await ctx.send(self.new_permissions_message(role, new_perms))
+
+	@commands.command(name='deny', aliases=['revoke'])
+	async def deny_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
+		"""Deny wiki permissions to a Discord role."""
+		perms = functools.reduce(operator.or_, permissions, Permissions.none)
+		new_perms = await self.db.deny_role_permissions(role.id, perms)
+		await ctx.send(self.new_permissions_message(role, new_perms))
+
+	def new_permissions_message(self, role, new_perms):
+		joined = inflect.join([perm.name for perm in new_perms])
 		response = f"""{self.bot.config["success_emoji"]} @{role}'s new permissions: {joined}"""
-		await ctx.send(discord.utils.escape_mentions(response))
+		return discord.utils.escape_mentions(response)
 
 def setup(bot):
 	bot.add_cog(WikiPermissions(bot))
