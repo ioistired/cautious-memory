@@ -45,7 +45,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	If you want to allow people with a certain wiki role to edit permissions of other wiki roles,
 	grant it the "Manage Permissions" permission.
 
-	For high security, it is recommended to create two roles just above @everyone
+	For high security, it is recommended to create two roles just above @‌everyone
 	One of them would serve as the "Wiki Admin", and it would get the "Manage Roles" permission so that it can grant
 	"Wiki Mod" to others.
 	"Wiki Admin" would get no wiki permissions.
