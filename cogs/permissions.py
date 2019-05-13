@@ -26,12 +26,18 @@ from utils.errors import MissingPermissionsError
 class UserEditableRole(commands.Converter):
 	@classmethod
 	async def convert(cls, ctx, arg):
-		role = await commands.RoleConverter().convert(ctx, arg)
+		if arg == 'everyone':
+			role = ctx.guild.default_role
+		else:
+			role = await commands.RoleConverter().convert(ctx, arg)
+
 		if ctx.author.guild_permissions.administrator:
 			return role
+
 		highest_role = await ctx.cog.db.highest_manage_permissions_role(ctx.author)
 		if role < highest_role:
 			return role
+
 		raise MissingPermissionsError(Permissions.manage_permissions)
 
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
@@ -75,14 +81,20 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 
 	@commands.command(name='grant')
 	async def grant_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
-		"""Grant wiki permissions to a Discord role."""
+		"""Grant wiki permissions to a Discord role.
+
+		To grant permissions to everyone, just specify "everyone" as the role.
+		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_perms = await self.db.allow_role_permissions(role.id, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='deny', aliases=['revoke'])
 	async def deny_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
-		"""Deny wiki permissions to a Discord role."""
+		"""Deny wiki permissions to a Discord role.
+
+		To grant permissions to everyone, just specify "everyone" as the role.
+		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_perms = await self.db.deny_role_permissions(role.id, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
@@ -92,6 +104,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""Grant permissions to a certain role on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
+		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
@@ -103,6 +116,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""Deny permissions to a certain role on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
+		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
@@ -114,6 +128,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		""""Uncheck" (neither allow nor deny) certain permissions for a role on a page.
 
 		This is equivalent to the "grey check mark" in Discord.
+		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
