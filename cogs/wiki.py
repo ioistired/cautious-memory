@@ -54,15 +54,15 @@ class WikiPage(commands.Converter):
 		title = discord.utils.escape_mentions(title)
 		actual_perms = await ctx.cog.db.permissions_for(ctx.author, title)
 		if self.required_perms not in actual_perms:
-			raise errors.MissingPermissionsError(required_perms)
+			raise errors.MissingPermissionsError(self.required_perms)
 		return title
 
 def has_wiki_permissions(required_perms):
 	async def pred(ctx):
 		member_perms = await ctx.cog.db.member_permissions(ctx.author)
-		if required_perms not in member_perms:
-			raise errors.MissingPermissionsError(required_perms)
-		return True
+		if required_perms in member_perms or ctx.author.guild_permissions.administrator:
+			return True
+		raise errors.MissingPermissionsError(required_perms)
 	return commands.check(pred)
 
 class Wiki(commands.Cog):
