@@ -402,6 +402,7 @@ class Database(commands.Cog):
 			UPDATE page_permissions SET
 				allow = allow & ~$3::INTEGER,
 				deny = deny & ~$3::INTEGER
+			WHERE page_id = (SELECT * FROM page_id)
 			RETURNING allow, deny
 		""", guild_id, title, perms.value) or (None, None)))
 
