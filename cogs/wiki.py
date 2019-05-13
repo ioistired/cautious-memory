@@ -26,7 +26,9 @@ import discord
 from discord.ext import commands
 from jishaku.paginators import WrappedPaginator, PaginatorInterface
 
+from cogs.db import Permissions
 import utils
+from utils import errors
 
 class WrappedPaginator(WrappedPaginator):
 	"""subclass of jishaku.paginators.WrappedPaginator
@@ -43,6 +45,25 @@ class PaginatorInterface(PaginatorInterface):
 
 	async def begin(self):
 		await super().send_to(self.ctx)
+
+class WikiPage(commands.Converter):
+	def __init__(self, required_perms: Permissions):
+		self.required_perms = required_perms
+
+	async def convert(self, ctx, title):
+		title = discord.utils.escape_mentions(title)
+		actual_perms = await ctx.cog.db.permissions_for(ctx.author, title)
+		if self.required_perms not in actual_perms:
+			raise errors.MissingPermissionsError(required_perms)
+		return title
+
+def has_wiki_permissions(required_perms):
+	async def pred(ctx):
+		member_perms = await ctx.cog.db.member_permissions(ctx.author)
+		if required_perms not in member_perms:
+			raise errors.MissingPermissionsError(required_perms)
+		return True
+	return commands.check(pred)
 
 class Wiki(commands.Cog):
 	def __init__(self, bot):
@@ -72,6 +93,7 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command(name='recent-revisions', aliases=['recent', 'recent-changes'])
+	@has_wiki_permissions(Permissions.view)
 	async def recent_revisions(self, ctx):
 		"""Shows you a list of the most recent revisions to pages on this server.
 
@@ -92,6 +114,7 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command()
+	@has_wiki_permissions(Permissions.view)
 	async def search(self, ctx, *, query):
 		"""Searches this server's wiki pages for titles similar to your query."""
 		paginator = WrappedPaginator(prefix='', suffix='')
@@ -105,6 +128,7 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command(aliases=['add'])
+	@has_wiki_permissions(Permissions.create)
 	async def create(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
 		"""Adds a new page to the wiki.
 		If the title has spaces, you must surround it in quotes.
@@ -115,7 +139,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revise'])
-	async def edit(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
+	async def edit(self, ctx, title: WikiPage(Permissions.edit), *, content: commands.clean_content):
 		"""Edits an existing wiki page.
 		If the title has spaces, you must surround it in quotes.
 		"""
@@ -123,7 +147,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command()
-	async def rename(self, ctx, title: commands.clean_content, new_title: commands.clean_content):
+	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
 		"""Renames a wiki page.
 
 		If the old title or the new title have spaces in them, you must surround it in quotes.
@@ -132,7 +156,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
-	async def history(self, ctx, *, title: commands.clean_content):
+	async def history(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Shows the revisions of a particular page"""
 		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
 		async for revision in self.db.get_page_revisions(ctx.guild.id, title):
@@ -141,7 +165,7 @@ class Wiki(commands.Cog):
 		await PaginatorInterface(ctx, paginator).begin()
 
 	@commands.command()
-	async def revert(self, ctx, title: commands.clean_content, revision: int):
+	async def revert(self, ctx, title: WikiPage(Permissions.edit), revision: int):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
 		If the title has spaces, you must surround it in quotes.
@@ -177,6 +201,9 @@ class Wiki(commands.Cog):
 				'One or more provided revision IDs were invalid. '
 				f'Use the {ctx.prefix}history command to get valid revision IDs.')
 			return
+
+		if Permissions.edit not in await self.db.permissions_for(ctx.author, new.title):
+			raise errors.MissingPermissionsError(Permissions.edit)
 
 		if old.page_id != new.page_id:
 			await ctx.send('You can only compare revisions of the same page.')
