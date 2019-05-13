@@ -58,14 +58,14 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	• Delete pages
 	• Manage permissions
 
-	Each page can also have "permission overwrites", which override the permissions granted by a role.
+	Each page can also have "permission overrides", which override the permissions granted by a role.
 	For example, you could have a role called "Wiki Mod" have view, edit, rename and deletion permissions,
 	except on an important page where you could deny the deletion permission for them.
 
 	Each member's permission on each page is calculated as follows:
 	1.) All of the permissions for all of their roles are combined.
-	2.) All of the "allowed" permission overwrites for that page are added to that member's permissions,
-	and all of the "denied" permission overwrites for that page are removed from them.
+	2.) All of the "allowed" permission overrides for that page are added to that member's permissions,
+	and all of the "denied" permission overrides for that page are removed from them.
 
 	By default, nobody can edit the wiki permissions of other roles except for server administrators.
 	This is to provide a higher level of security.
