@@ -40,4 +40,4 @@ class MissingPermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
 	def __init__(self, permissions_needed):
 		joined = inflect.join([permission.name for permission in permissions_needed])
-		super().__init__(f'Missing permissions to perform this action. You need all of these permissions: {joined}.')
+		super().__init__(f'Missing permissions to perform this action. You need these permissions: {joined}.')
