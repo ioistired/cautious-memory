@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS role_permissions(
 
 CREATE TABLE IF NOT EXISTS page_permissions(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
-	role BIGINT NOT NULL REFERENCES role_permissions ON DELETE CASCADE,
+	-- either a role ID or a member ID
+	entity BIGINT NOT NULL,
 	-- permissions to allow which overwrite role permissions
 	allow INTEGER NOT NULL DEFAULT 0,
 	-- permissions to deny
@@ -36,4 +37,4 @@ CREATE TABLE IF NOT EXISTS page_permissions(
 
 	-- you may not allow and deny a permission
 	CHECK (allow & deny = 0),
-	PRIMARY KEY (page_id, role));
+	PRIMARY KEY (page_id, entity));

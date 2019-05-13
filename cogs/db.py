@@ -237,16 +237,17 @@ class Database(commands.Cog):
 	## Permissions
 
 	async def permissions_for(self, member: discord.Member, title):
-		roles = list(map(operator.attrgetter('id'), member.roles))
+		roles = [role.id for role in member.roles] + [member.id]
 		perms = await self.bot.pool.fetchval("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
-			SELECT (bit_or(permissions) | COALESCE(bit_or(allow), 0)) & ~COALESCE(bit_or(deny), 0)
-			FROM role_permissions LEFT JOIN page_permissions USING (role)
+			SELECT (COALESCE(bit_or(permissions), $4) | COALESCE(bit_or(allow), 0)) & ~COALESCE(bit_or(deny), 0)
+			FROM role_permissions FULL OUTER JOIN page_permissions ON (role = entity)
 			WHERE
-				role = ANY ($3)
+				entity = ANY ($3)
+				OR role = ANY ($3)
 				AND page_id = (SELECT * FROM page_id)
 				OR page_id IS NULL  -- in case there's no page permissions for some role
-		""", member.guild.id, title, roles)
+		""", member.guild.id, title, roles, Permissions.default.value)
 		if perms is None:
 			return Permissions.default
 		return Permissions(perms)
@@ -314,23 +315,23 @@ class Database(commands.Cog):
 	async def get_page_overwrites(self, guild_id, title) -> typing.List[typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
 		# TODO figure out a way to raise an error on page not found instead of returning []
-		return list(map(lambda row: tuple(map(Permissions, row)), await self.bot.pool.fetch("""
+		return [tuple(map(Permissions, row)) for row in await self.bot.pool.fetch("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			SELECT allow, deny
 			FROM page_permissions
 			WHERE page_id = (SELECT * FROM page_id)
-		""", guild_id, title)))
+		""", guild_id, title)]
 
 	async def set_page_overwrites(
 		self,
 		*,
 		guild_id,
 		title,
-		role_id,
+		entity_id,
 		allow_perms: Permissions = Permissions.none,
 		deny_perms: Permissions = Permissions.none
 	):
-		"""set the allowed, denied, or both permissions for a particular page and role"""
+		"""set the allowed, denied, or both permissions for a particular page and entity (role or member)"""
 		if new_allow_perms & new_deny_perms != Permissions.none:
 			# don't allow someone to both deny and allow a permission
 			raise ValueError('allowed and denied permissions must not intersect')
@@ -338,25 +339,25 @@ class Database(commands.Cog):
 		try:
 			await self.bot.pool.execute("""
 				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
-				INSERT INTO page_permissions (page_id, role, allow, deny)
+				INSERT INTO page_permissions (page_id, entity, allow, deny)
 				VALUES ((SELECT * FROM page_id), $3, $4, $5)
-				ON CONFLICT (page_id, role) DO UPDATE SET
+				ON CONFLICT (page_id, entity) DO UPDATE SET
 					allow = EXCLUDED.allow,
 					deny = EXCLUDED.deny
-			""", guild_id, title, role_id, allow_perms.value, deny_perms.value)
+			""", guild_id, title, entity_id, allow_perms.value, deny_perms.value)
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
 			raise errors.PageNotFoundError(title)
 
-	async def unset_page_overwrites(self, *, guild_id, title, role_id):
+	async def unset_page_overwrites(self, *, guild_id, title, entity_id):
 		"""remove all of the allowed and denied overwrites for a page"""
 		command_tag = await self.bot.pool.execute("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			DELETE FROM page_permissions
 			WHERE
 				page_id = (SELECT * FROM page_id)
-				AND role = $3
-		""", guild_id, title, role_id)
+				AND entity = $3
+		""", guild_id, title, entity_id)
 		count = int(command_tag.split()[-1])
 		if not count:
 			raise errors.PageNotFoundError(title)
@@ -366,7 +367,7 @@ class Database(commands.Cog):
 		*,
 		guild_id,
 		title,
-		role_id,
+		entity_id,
 		new_allow_perms: Permissions = Permissions.none,
 		new_deny_perms: Permissions = Permissions.none
 	):
@@ -377,22 +378,19 @@ class Database(commands.Cog):
 
 		try:
 			return tuple(map(Permissions, await self.bot.pool.fetchrow("""
-				WITH
-					page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2)),
-					-- needed to satisfy the foreign key constraint (TODO is it really necessary?)
-					_ AS (INSERT INTO role_permissions (role, permissions) VALUES ($3, $6) ON CONFLICT DO NOTHING)
-				INSERT INTO page_permissions (page_id, role, allow, deny)
+				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+				INSERT INTO page_permissions (page_id, entity, allow, deny)
 				VALUES ((SELECT * FROM page_id), $3, $4, $5)
-				ON CONFLICT (page_id, role) DO UPDATE SET
+				ON CONFLICT (page_id, entity) DO UPDATE SET
 					allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
 					deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
 				RETURNING allow, deny
-			""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value, Permissions.default.value)))
+			""", guild_id, title, entity_id, new_allow_perms.value, new_deny_perms.value)))
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
 			raise errors.PageNotFoundError(title)
 
-	async def unset_page_permissions(self, *, guild_id, title, role_id, perms):
+	async def unset_page_permissions(self, *, guild_id, title, entity_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
 
 		This is equivalent to the "grey check" in Discord's UI.
@@ -400,11 +398,11 @@ class Database(commands.Cog):
 		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			UPDATE page_permissions SET
-				allow = allow & ~$3::INTEGER,
-				deny = deny & ~$3::INTEGER
-			WHERE page_id = (SELECT * FROM page_id)
+				allow = allow & ~$4::INTEGER,
+				deny = deny & ~$4::INTEGER
+			WHERE page_id = (SELECT * FROM page_id) AND entity = $3
 			RETURNING allow, deny
-		""", guild_id, title, perms.value) or (None, None)))
+		""", guild_id, title, entity_id, perms.value) or (None, None)))
 
 def setup(bot):
 	bot.add_cog(Database(bot))
