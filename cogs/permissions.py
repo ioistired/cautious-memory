@@ -38,7 +38,7 @@ class UserEditableRole(commands.Converter):
 			return role
 
 		highest_role = await ctx.cog.db.highest_manage_permissions_role(ctx.author)
-		if role and role < highest_role:
+		if highest_role and role < highest_role:
 			return role
 
 		raise MissingPermissionsError(Permissions.manage_permissions)
