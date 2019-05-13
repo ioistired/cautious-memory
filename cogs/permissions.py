@@ -26,10 +26,13 @@ from utils.errors import MissingPermissionsError
 class UserEditableRole(commands.Converter):
 	@classmethod
 	async def convert(cls, ctx, arg):
-		if arg == 'everyone':
-			role = ctx.guild.default_role
-		else:
+		try:
 			role = await commands.RoleConverter().convert(ctx, arg)
+		except commands.BadArgument:
+			if arg == 'everyone':
+				role = ctx.guild.default_role
+			else:
+				raise
 
 		if ctx.author.guild_permissions.administrator:
 			return role
