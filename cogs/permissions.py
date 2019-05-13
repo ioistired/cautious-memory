@@ -103,7 +103,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='grant-page')
-	async def grant_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+	async def grant_page_permissions(self, ctx, role: UserEditableRole, page_title, *permissions: Permissions):
 		"""Grant permissions to a certain role on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
@@ -111,11 +111,11 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
-			guild_id=ctx.guild.id, role_id=role.id, title=title, new_allow_perms=perms)
-		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+			guild_id=ctx.guild.id, role_id=role.id, title=page_title, new_allow_perms=perms)
+		await ctx.send(self.new_overwrites_message(role, page_title, new_allow, new_deny))
 
 	@commands.command(name='deny-page')
-	async def deny_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+	async def deny_page_permissions(self, ctx, role: UserEditableRole, page_title, *permissions: Permissions):
 		"""Deny permissions to a certain role on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
@@ -123,11 +123,11 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
-			guild_id=ctx.guild.id, role_id=role.id, title=title, new_deny_perms=perms)
+			guild_id=ctx.guild.id, role_id=role.id, title=page_title, new_deny_perms=perms)
 		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
 
 	@commands.command(name='uncheck-page')
-	async def unset_page_permissions(self, ctx, role: UserEditableRole, title, *permissions: Permissions):
+	async def unset_page_permissions(self, ctx, role: UserEditableRole, page_title, *permissions: Permissions):
 		""""Uncheck" (neither allow nor deny) certain permissions for a role on a page.
 
 		This is equivalent to the "grey check mark" in Discord.
@@ -135,7 +135,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
-			guild_id=ctx.guild.id, role_id=role.id, title=title, perms=perms)
+			guild_id=ctx.guild.id, role_id=role.id, title=page_title, perms=perms)
 		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
 
 	def new_permissions_message(self, role, new_perms):
