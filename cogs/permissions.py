@@ -124,7 +124,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
 			guild_id=ctx.guild.id, role_id=role.id, title=page_title, new_deny_perms=perms)
-		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+		await ctx.send(self.new_overwrites_message(role, page_title, new_allow, new_deny))
 
 	@commands.command(name='uncheck-page')
 	async def unset_page_permissions(self, ctx, role: UserEditableRole, page_title, *permissions: Permissions):
@@ -136,7 +136,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
 			guild_id=ctx.guild.id, role_id=role.id, title=page_title, perms=perms)
-		await ctx.send(self.new_overwrites_message(role, title, new_allow, new_deny))
+		await ctx.send(self.new_overwrites_message(role, page_title, new_allow, new_deny))
 
 	def new_permissions_message(self, role, new_perms):
 		joined = inflect.join([perm.name for perm in new_perms])
