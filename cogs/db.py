@@ -90,7 +90,7 @@ class Database(commands.Cog):
 			DELETE FROM pages
 			WHERE guild = $1 AND LOWER(title) = $2
 		""", guild_id, title)
-		count = int(command_tag.split()[1])
+		count = int(command_tag.split()[-1])
 		if not count:
 			raise errors.PageNotFoundError(title)
 
@@ -218,7 +218,7 @@ class Database(commands.Cog):
 			raise errors.PageExistsError
 
 		# UPDATE 1 -> 1
-		rows_updated = int(command_tag.split()[1])
+		rows_updated = int(command_tag.split()[-1])
 		if not rows_updated:
 			raise errors.PageNotFoundError(title)
 
