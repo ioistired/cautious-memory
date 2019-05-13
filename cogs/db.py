@@ -29,13 +29,16 @@ inflect = inflect.engine()
 from utils import attrdict, errors
 
 class Permissions(enum.Flag):
-	none = 0
-	view = enum.auto()
-	rename = enum.auto()
-	edit = enum.auto()
-	delete = enum.auto()
-	manage_permissions = enum.auto()
-	default = view | rename | edit
+	# this class is the single source of truth for the permissions values
+	# so DO NOT change any of them, and make sure that new ones exceed the current maximum value!
+	none	= 0
+	view	= 1
+	rename	= 2
+	edit	= 4
+	create	= 8
+	delete	= 16
+	manage_permissions = 32
+	default = create | view | rename | edit
 
 	def __iter__(self):
 		for perm in type(self).__members__.values():
