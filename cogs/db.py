@@ -359,14 +359,17 @@ class Database(commands.Cog):
 			raise ValueError('allowed and denied permissions must not intersect')
 
 		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+			WITH
+				page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2)),
+				-- needed to satisfy the foreign key constraint (TODO is it really necessary?)
+				_ AS (INSERT INTO role_permissions (role, permissions) VALUES ($3, $6) ON CONFLICT DO NOTHING)
 			INSERT INTO page_permissions (page_id, role, allow, deny)
 			VALUES ((SELECT * FROM page_id), $3, $4, $5)
 			ON CONFLICT (page_id, role) DO UPDATE SET
 				allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
 				deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
 			RETURNING allow, deny
-		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value)))
+		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value, Permissions.default.value)))
 
 	async def unset_page_permissions(self, *, guild_id, title, role_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
