@@ -85,6 +85,15 @@ class Database(commands.Cog):
 
 		return attrdict(row)
 
+	async def delete_page(self, guild_id, title):
+		command_tag = await self.bot.pool.execute("""
+			DELETE FROM pages
+			WHERE guild = $1 AND LOWER(title) = $2
+		""", guild_id, title)
+		count = int(command_tag.split()[1])
+		if not count:
+			raise errors.PageNotFoundError(title)
+
 	async def get_page_revisions(self, guild_id, title):
 		async for row in self.cursor("""
 			SELECT *

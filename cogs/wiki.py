@@ -53,9 +53,9 @@ class WikiPage(commands.Converter):
 	async def convert(self, ctx, title):
 		title = discord.utils.escape_mentions(title)
 		actual_perms = await ctx.cog.db.permissions_for(ctx.author, title)
-		if self.required_perms not in actual_perms:
-			raise errors.MissingPermissionsError(self.required_perms)
-		return title
+		if self.required_perms in actual_perms or ctx.author.guild_permissions.administrator:
+			return title
+		raise errors.MissingPermissionsError(self.required_perms)
 
 def has_wiki_permissions(required_perms):
 	async def pred(ctx):
@@ -145,6 +145,15 @@ class Wiki(commands.Cog):
 		"""
 		await self.db.revise_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+
+	@commands.command(aliases=['remove'])
+	async def delete(self, ctx, title: WikiPage(Permissions.delete)):
+		"""Deletes a wiki page. This deletes all of its revisions, as well.
+
+		You must have the "delete pages" permission.
+		"""
+		await self.db.delete_page(ctx.guild.id, title)
+		await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions successfully deleted.')
 
 	@commands.command()
 	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
