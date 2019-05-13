@@ -313,6 +313,7 @@ class Database(commands.Cog):
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.List[typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
+		# TODO figure out a way to raise an error on page not found instead of returning []
 		return list(map(lambda row: tuple(map(Permissions, row)), await self.bot.pool.fetch("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			SELECT allow, deny
@@ -334,24 +335,31 @@ class Database(commands.Cog):
 			# don't allow someone to both deny and allow a permission
 			raise ValueError('allowed and denied permissions must not intersect')
 
-		await self.bot.pool.execute("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
-			INSERT INTO page_permissions (page_id, role, allow, deny)
-			VALUES ((SELECT * FROM page_id), $3, $4, $5)
-			ON CONFLICT (page_id, role) DO UPDATE SET
-				allow = EXCLUDED.allow,
-				deny = EXCLUDED.deny
-		""", guild_id, title, role_id, allow_perms.value, deny_perms.value)
+		try:
+			await self.bot.pool.execute("""
+				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+				INSERT INTO page_permissions (page_id, role, allow, deny)
+				VALUES ((SELECT * FROM page_id), $3, $4, $5)
+				ON CONFLICT (page_id, role) DO UPDATE SET
+					allow = EXCLUDED.allow,
+					deny = EXCLUDED.deny
+			""", guild_id, title, role_id, allow_perms.value, deny_perms.value)
+		except asyncpg.NotNullViolationError:
+			# the page_id CTE returned no rows
+			raise errors.PageNotFoundError(title)
 
 	async def unset_page_overwrites(self, *, guild_id, title, role_id):
 		"""remove all of the allowed and denied overwrites for a page"""
-		await self.bot.pool.execute("""
+		command_tag = await self.bot.pool.execute("""
 			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
 			DELETE FROM page_permissions
 			WHERE
 				page_id = (SELECT * FROM page_id)
 				AND role = $3
 		""", guild_id, title, role_id)
+		count = int(command_tag.split()[-1])
+		if not count:
+			raise errors.PageNotFoundError(title)
 
 	async def add_page_permissions(
 		self,
@@ -367,18 +375,22 @@ class Database(commands.Cog):
 			# don't allow someone to both deny and allow a permission
 			raise ValueError('allowed and denied permissions must not intersect')
 
-		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
-			WITH
-				page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2)),
-				-- needed to satisfy the foreign key constraint (TODO is it really necessary?)
-				_ AS (INSERT INTO role_permissions (role, permissions) VALUES ($3, $6) ON CONFLICT DO NOTHING)
-			INSERT INTO page_permissions (page_id, role, allow, deny)
-			VALUES ((SELECT * FROM page_id), $3, $4, $5)
-			ON CONFLICT (page_id, role) DO UPDATE SET
-				allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
-				deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
-			RETURNING allow, deny
-		""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value, Permissions.default.value)))
+		try:
+			return tuple(map(Permissions, await self.bot.pool.fetchrow("""
+				WITH
+					page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2)),
+					-- needed to satisfy the foreign key constraint (TODO is it really necessary?)
+					_ AS (INSERT INTO role_permissions (role, permissions) VALUES ($3, $6) ON CONFLICT DO NOTHING)
+				INSERT INTO page_permissions (page_id, role, allow, deny)
+				VALUES ((SELECT * FROM page_id), $3, $4, $5)
+				ON CONFLICT (page_id, role) DO UPDATE SET
+					allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
+					deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
+				RETURNING allow, deny
+			""", guild_id, title, role_id, new_allow_perms.value, new_deny_perms.value, Permissions.default.value)))
+		except asyncpg.NotNullViolationError:
+			# the page_id CTE returned no rows
+			raise errors.PageNotFoundError(title)
 
 	async def unset_page_permissions(self, *, guild_id, title, role_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
