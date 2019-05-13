@@ -1,3 +1,5 @@
+license-notice.txt
+
 *.json5
 !*.example.json5
 
