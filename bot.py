@@ -132,7 +132,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			await context.send(error)
 		elif (
 			isinstance(error, commands.CommandInvokeError)
-			and not hasattr(context.cog, utils.mangle(context.cog, '__error'))
+			and not hasattr(context.cog, 'cog_command_error'))
 		):
 			logger.error('"%s" caused an exception', context.message.content)
 			logger.error(''.join(traceback.format_tb(error.original.__traceback__)))
