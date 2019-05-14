@@ -47,6 +47,8 @@ async def async_enumerate(aiter, start=0):
 		yield i, x
 		i += 1
 
+# this function is Public Domain
+# https://creativecommons.org/publicdomain/zero/1.0/
 def load_sql(fp):
 	"""given a file-like object, read the queries delimited by `-- :name foo` comment lines
 	return a dict mapping these names to their respective SQL queries
