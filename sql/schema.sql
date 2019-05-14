@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS pages(
 	page_id SERIAL PRIMARY KEY,
 	title VARCHAR(200) NOT NULL,
 	-- lets us find the text of the page
-	latest_revision INTEGER NOT NULL,
+	latest_revision INTEGER,
 	guild BIGINT NOT NULL,
 	-- this information could be gotten by just looking at the date of the oldest revision
 	-- but this way is easier
