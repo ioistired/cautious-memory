@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS revisions(
 	content VARCHAR(2000) NOT NULL,
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
+ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions;
+
 CREATE TABLE IF NOT EXISTS role_permissions(
 	role BIGINT PRIMARY KEY,
 	permissions INTEGER NOT NULL);
