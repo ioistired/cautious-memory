@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright © 2019 lambda#0987
 #
 # This program is free software: you can redistribute it and/or modify
@@ -129,7 +131,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			await context.send(error)
 		elif (
 			isinstance(error, commands.CommandInvokeError)
-			and not hasattr(context.cog, 'cog_command_error'))
+			and not hasattr(context.cog, 'cog_command_error')
 		):
 			logger.error('"%s" caused an exception', context.message.content)
 			logger.error(''.join(traceback.format_tb(error.original.__traceback__)))
@@ -180,10 +182,10 @@ class CautiousMemory(commands.AutoShardedBot):
 
 	def _load_extensions(self):
 		for extension in (
-			'cogs.wiki.db',
-			'cogs.wiki.commands',
 			'cogs.permissions.db',
 			'cogs.permissions.commands',
+			'cogs.wiki.db',
+			'cogs.wiki.commands',
 			'cogs.meta',
 			'jishaku',
 			'ben_cogs.misc',

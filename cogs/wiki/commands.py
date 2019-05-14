@@ -22,27 +22,11 @@ from ben_cogs.misc import Misc
 natural_time = Misc.natural_time
 import discord
 from discord.ext import commands
-from jishaku.paginators import WrappedPaginator, PaginatorInterface
 
 from cogs.permissions.db import Permissions
 import utils
 from utils import errors
-
-class WrappedPaginator(WrappedPaginator):
-	"""subclass of jishaku.paginators.WrappedPaginator
-	that does not cause PaginatorInterface to complain about max_size
-	"""
-	def __init__(self, *args, **kwargs):
-		max_size = kwargs.pop('max_size', 1991)  # constant found by binary search
-		super().__init__(*args, **kwargs, max_size=max_size)
-
-class PaginatorInterface(PaginatorInterface):
-	def __init__(self, ctx, paginator):
-		self.ctx = ctx
-		super().__init__(ctx.bot, paginator, owner=ctx.author)
-
-	async def begin(self):
-		await super().send_to(self.ctx)
+from utils.paginator import Pages, TextPages
 
 class WikiPage(commands.Converter):
 	def __init__(self, required_perms: Permissions):
@@ -50,14 +34,14 @@ class WikiPage(commands.Converter):
 
 	async def convert(self, ctx, title):
 		title = discord.utils.escape_mentions(title)
-		actual_perms = await ctx.bot.get_cog('PermissionsDatabase').permissions_for(ctx.author, title)
+		actual_perms = await ctx.cog.permissions_db.permissions_for(ctx.author, title)
 		if self.required_perms in actual_perms or ctx.author.guild_permissions.administrator:
 			return title
 		raise errors.MissingPermissionsError(self.required_perms)
 
 def has_wiki_permissions(required_perms):
 	async def pred(ctx):
-		member_perms = await ctx.bot.get_cog('PermissionsDatabase').member_permissions(ctx.author)
+		member_perms = await ctx.cog.permissions_db.member_permissions(ctx.author)
 		if required_perms in member_perms or ctx.author.guild_permissions.administrator:
 			return True
 		raise errors.MissingPermissionsError(required_perms)
@@ -67,6 +51,7 @@ class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.db = self.bot.get_cog('WikiDatabase')
+		self.permissions_db = self.bot.get_cog('PermissionsDatabase')
 
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
@@ -80,15 +65,13 @@ class Wiki(commands.Cog):
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
 		"""Shows you a list of all the pages on this server."""
-		paginator = WrappedPaginator(prefix='', suffix='')
-		async for i, page in utils.async_enumerate(self.db.get_all_pages(ctx.guild.id), 1):
-			paginator.add_line(f'{i}. {page.title}')
+		paginator = Pages(ctx, entries=[p.title async for p in self.db.get_all_pages(ctx.guild.id)])
 
-		if not paginator.pages:
+		if not paginator.entries:
 			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
 			return
 
-		await PaginatorInterface(ctx, paginator).begin()
+		await paginator.begin()
 
 	@commands.command(name='recent-revisions', aliases=['recent', 'recent-changes'])
 	@has_wiki_permissions(Permissions.view)
@@ -97,33 +80,31 @@ class Wiki(commands.Cog):
 
 		Revisions shown were made within the past two weeks.
 		"""
-		paginator = WrappedPaginator(prefix='', suffix='')
 		cutoff_delta = datetime.timedelta(weeks=2)
 		cutoff = datetime.datetime.utcnow() - cutoff_delta
 
-		async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff):
-			paginator.add_line(self.revision_summary(ctx.guild, revision, include_title=True))
+		entries = [
+			self.revision_summary(ctx.guild, revision, include_title=True)
+			async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff)]
 
-		if not paginator.pages:
+		if not entries:
 			delta = natural_time(cutoff_delta.total_seconds())
 			await ctx.send(f'No pages have been created or revised within the past {delta}.')
 			return
 
-		await PaginatorInterface(ctx, paginator).begin()
+		await Pages(ctx, entries=entries).begin()
 
 	@commands.command()
 	@has_wiki_permissions(Permissions.view)
 	async def search(self, ctx, *, query):
 		"""Searches this server's wiki pages for titles similar to your query."""
-		paginator = WrappedPaginator(prefix='', suffix='')
-		async for i, page in utils.async_enumerate(self.db.search_pages(ctx.guild.id, query), 1):
-			paginator.add_line(f'{i}. {page.title}')
+		paginator = Pages(ctx, entries=[p.title async for p in self.db.search_pages(ctx.guild.id, query)])
 
-		if not paginator.pages:
-			await ctx.send('No pages match your search.')
+		if not paginator.entries:
+			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
 			return
 
-		await PaginatorInterface(ctx, paginator).begin()
+		await paginator.begin()
 
 	@commands.command(aliases=['add'])
 	@has_wiki_permissions(Permissions.create)
@@ -165,11 +146,14 @@ class Wiki(commands.Cog):
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Shows the revisions of a particular page"""
-		paginator = WrappedPaginator(prefix='', suffix='')  # suppress the default code block behavior
-		async for revision in self.db.get_page_revisions(ctx.guild.id, title):
-			paginator.add_line(self.revision_summary(ctx.guild, revision))
 
-		await PaginatorInterface(ctx, paginator).begin()
+		entries = [
+			self.revision_summary(ctx.guild, revision)
+			async for revision in self.db.get_page_revisions(ctx.guild.id, title)]
+		if not entries:
+			raise errors.PageNotFoundError(title)
+
+		await Pages(ctx, entries=entries, numbered=False).begin()
 
 	@commands.command()
 	async def revert(self, ctx, title: WikiPage(Permissions.edit), revision: int):
@@ -209,7 +193,7 @@ class Wiki(commands.Cog):
 				f'Use the {ctx.prefix}history command to get valid revision IDs.')
 			return
 
-		if Permissions.edit not in await self.db.permissions_for(ctx.author, new.title):
+		if Permissions.edit not in await self.permissions_db.permissions_for(ctx.author, new.title):
 			raise errors.MissingPermissionsError(Permissions.edit)
 
 		if old.page_id != new.page_id:
@@ -223,16 +207,12 @@ class Wiki(commands.Cog):
 			tofile=self.revision_summary(ctx.guild, new),
 			lineterm='')
 
-		del old, new  # save a bit of memory while we paginate
-		paginator = WrappedPaginator(prefix='```diff\n')
-		for line in diff:
-			paginator.add_line(utils.escape_code_blocks(line))
-
-		if not paginator.pages:
+		if not diff:
 			await ctx.send('These revisions appear to be identical.')
 			return
 
-		await PaginatorInterface(ctx, paginator).begin()
+		del old, new  # save a bit of memory while we paginate
+		await TextPages(ctx, '\n'.join(map(utils.escape_code_blocks, diff)), prefix='```diff\n').begin()
 
 	@staticmethod
 	def revision_summary(guild, revision, *, include_title=False):
