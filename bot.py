@@ -189,9 +189,10 @@ class CautiousMemory(commands.AutoShardedBot):
 
 	def _load_extensions(self):
 		for extension in (
-			'cogs.db',
-			'cogs.wiki',
-			'cogs.permissions',
+			'cogs.wiki.db',
+			'cogs.wiki.commands',
+			'cogs.permissions.db',
+			'cogs.permissions.commands',
 			'cogs.meta',
 			'jishaku',
 			'ben_cogs.misc',

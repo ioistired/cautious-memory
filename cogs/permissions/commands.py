@@ -21,7 +21,7 @@ from discord.ext import commands
 import inflect
 inflect = inflect.engine()
 
-from cogs.db import Permissions
+from cogs.permissions.db import Permissions
 from utils.errors import MissingPermissionsError
 
 class UserEditableRole(commands.Converter):
@@ -80,7 +80,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""
 	def __init__(self, bot):
 		self.bot = bot
-		self.db = self.bot.get_cog('Database')
+		self.db = self.bot.get_cog('PermissionsDatabase')
 
 	def cog_check(self, ctx):
 		return bool(ctx.guild)

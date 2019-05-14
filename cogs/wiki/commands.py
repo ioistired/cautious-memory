@@ -26,7 +26,7 @@ import discord
 from discord.ext import commands
 from jishaku.paginators import WrappedPaginator, PaginatorInterface
 
-from cogs.db import Permissions
+from cogs.permissions.db import Permissions
 import utils
 from utils import errors
 
@@ -52,14 +52,14 @@ class WikiPage(commands.Converter):
 
 	async def convert(self, ctx, title):
 		title = discord.utils.escape_mentions(title)
-		actual_perms = await ctx.cog.db.permissions_for(ctx.author, title)
+		actual_perms = await ctx.bot.get_cog('PermissionsDatabase').permissions_for(ctx.author, title)
 		if self.required_perms in actual_perms or ctx.author.guild_permissions.administrator:
 			return title
 		raise errors.MissingPermissionsError(self.required_perms)
 
 def has_wiki_permissions(required_perms):
 	async def pred(ctx):
-		member_perms = await ctx.cog.db.member_permissions(ctx.author)
+		member_perms = await ctx.bot.get_cog('PermissionsDatabase').member_permissions(ctx.author)
 		if required_perms in member_perms or ctx.author.guild_permissions.administrator:
 			return True
 		raise errors.MissingPermissionsError(required_perms)
@@ -68,7 +68,7 @@ def has_wiki_permissions(required_perms):
 class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.db = self.bot.get_cog('Database')
+		self.db = self.bot.get_cog('WikiDatabase')
 
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
