@@ -38,6 +38,7 @@ else:
 import utils
 
 BASE_DIR = os.path.dirname(__file__)
+SQL_DIR = os.path.join(BASE_DIR, 'sql')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('bot')
@@ -46,7 +47,6 @@ class CautiousMemory(commands.AutoShardedBot):
 	def __init__(self, *args, **kwargs):
 		self.config = kwargs.pop('config')
 		self.process_config()
-		self.db_ready = asyncio.Event()
 		self._fallback_prefix = str(uuid.uuid4())
 
 		super().__init__(
@@ -179,13 +179,7 @@ class CautiousMemory(commands.AutoShardedBot):
 
 	async def _init_db(self):
 		credentials = self.config['database']
-		pool = await asyncpg.create_pool(**credentials)
-
-		with open(os.path.join(BASE_DIR, 'schema.sql')) as f:
-			await pool.execute(f.read())
-
-		self.pool = pool
-		self.db_ready.set()
+		self.pool = await asyncpg.create_pool(**credentials)
 
 	def _load_extensions(self):
 		for extension in (

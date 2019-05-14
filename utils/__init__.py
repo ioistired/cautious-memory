@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 # Copyright © 2019 lambda#0987
 #
 # This program is free software: you can redistribute it and/or modify
@@ -15,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from collections import defaultdict
 import re
 
 import discord
@@ -23,6 +22,9 @@ attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
 	'__setattr__': dict.__setitem__,
 	'__delattr__': dict.__delitem__})
+
+class attr_defaultdict(attrdict, defaultdict):
+	pass
 
 def mangle(obj, attr):
 	cls = obj if isinstance(obj, type) else type(obj)
@@ -48,3 +50,25 @@ async def async_enumerate(aiter, start=0):
 	async for x in aiter:
 		yield i, x
 		i += 1
+
+def load_sql(fp):
+	"""given a file-like object, read the queries delimited by `-- :name foo` comment lines
+	return a dict mapping these names to their respective SQL queries
+	the file-like is not closed afterwards.
+	"""
+	# tag -> list[lines]
+	queries = attr_defaultdict(list)
+	current_tag = ''
+
+	for line in fp:
+		match = re.match('\s*--\s*:name\s*(\S+)\s*$', line)
+		if match:
+			current_tag = match[1]
+			continue
+		if current_tag:
+			queries[current_tag].append(line)
+
+	for tag, query in queries.items():
+		queries[tag] = '\n'.join(query)
+
+	return queries
