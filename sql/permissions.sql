@@ -1,7 +1,7 @@
 -- :name permissions_for
 -- params: guild_id, title, role_ids, Permissions.default.value
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
-SELECT (coalesce(bit_or(permissions), $4) | coalesce(bit_or(allow), 0)) & ~coalesce(bit_or(deny), 0)
+SELECT coalesce(bit_or(permissions), $4) & ~coalesce(bit_or(deny), 0) | coalesce(bit_or(allow), 0)
 FROM role_permissions FULL OUTER JOIN page_permissions ON (role = entity)
 WHERE
 	entity = ANY ($3)
