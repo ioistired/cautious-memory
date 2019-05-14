@@ -1,6 +1,6 @@
 SET TIME ZONE UTC;
 
-CREATE TABLE IF NOT EXISTS pages(
+CREATE TABLE pages(
 	page_id SERIAL PRIMARY KEY,
 	title VARCHAR(200) NOT NULL,
 	-- lets us find the text of the page
@@ -10,10 +10,10 @@ CREATE TABLE IF NOT EXISTS pages(
 	-- but this way is easier
 	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (lower(title), guild);
-CREATE INDEX IF NOT EXISTS pages_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
+CREATE UNIQUE INDEX pages_uniq_idx ON pages (lower(title), guild);
+CREATE INDEX pages_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
 
-CREATE TABLE IF NOT EXISTS revisions(
+CREATE TABLE revisions(
 	revision_id SERIAL PRIMARY KEY,
 	-- what page is this a revision of?
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
@@ -24,11 +24,11 @@ CREATE TABLE IF NOT EXISTS revisions(
 
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions;
 
-CREATE TABLE IF NOT EXISTS role_permissions(
+CREATE TABLE role_permissions(
 	role BIGINT PRIMARY KEY,
 	permissions INTEGER NOT NULL);
 
-CREATE TABLE IF NOT EXISTS page_permissions(
+CREATE TABLE page_permissions(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
 	-- either a role ID or a member ID
 	entity BIGINT NOT NULL,
