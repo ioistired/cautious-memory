@@ -78,7 +78,7 @@ class Database(commands.Cog):
 					ON pages.latest_revision = revisions.revision_id
 			WHERE
 				guild = $1
-				AND LOWER(title) = LOWER($2)
+				AND lower(title) = lower($2)
 		""", guild_id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
@@ -88,7 +88,7 @@ class Database(commands.Cog):
 	async def delete_page(self, guild_id, title):
 		command_tag = await self.bot.pool.execute("""
 			DELETE FROM pages
-			WHERE guild = $1 AND LOWER(title) = $2
+			WHERE guild = $1 AND lower(title) = $2
 		""", guild_id, title)
 		count = int(command_tag.split()[-1])
 		if not count:
@@ -100,7 +100,7 @@ class Database(commands.Cog):
 			FROM pages INNER JOIN revisions USING (page_id)
 			WHERE
 				guild = $1
-				AND LOWER(title) = LOWER($2)
+				AND lower(title) = lower($2)
 			ORDER BY revision_id DESC
 		""", guild_id, title):
 			yield row
@@ -114,7 +114,7 @@ class Database(commands.Cog):
 				INNER JOIN revisions
 					ON pages.latest_revision = revisions.revision_id
 			WHERE guild = $1
-			ORDER BY LOWER(title) ASC
+			ORDER BY lower(title) ASC
 		""", guild_id):
 			yield row
 
@@ -197,7 +197,7 @@ class Database(commands.Cog):
 				SELECT page_id
 				FROM pages
 				WHERE
-					LOWER(title) = LOWER($1)
+					lower(title) = lower($1)
 					AND guild = $2
 			""", title, guild_id)
 			if page_id is None:
@@ -211,7 +211,7 @@ class Database(commands.Cog):
 				UPDATE pages
 				SET title = $3
 				WHERE
-					LOWER(title) = LOWER($2)
+					lower(title) = lower($2)
 					AND guild = $1
 			""", guild_id, title, new_title)
 		except asyncpg.UniqueViolationError:
@@ -239,8 +239,8 @@ class Database(commands.Cog):
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
 		perms = await self.bot.pool.fetchval("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
-			SELECT (COALESCE(bit_or(permissions), $4) | COALESCE(bit_or(allow), 0)) & ~COALESCE(bit_or(deny), 0)
+			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+			SELECT (coalesce(bit_or(permissions), $4) | coalesce(bit_or(allow), 0)) & ~coalesce(bit_or(deny), 0)
 			FROM role_permissions FULL OUTER JOIN page_permissions ON (role = entity)
 			WHERE
 				entity = ANY ($3)
@@ -316,7 +316,7 @@ class Database(commands.Cog):
 		"""get the allowed and denied permissions for a particular page"""
 		# TODO figure out a way to raise an error on page not found instead of returning []
 		return [tuple(map(Permissions, row)) for row in await self.bot.pool.fetch("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 			SELECT allow, deny
 			FROM page_permissions
 			WHERE page_id = (SELECT * FROM page_id)
@@ -338,7 +338,7 @@ class Database(commands.Cog):
 
 		try:
 			await self.bot.pool.execute("""
-				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 				INSERT INTO page_permissions (page_id, entity, allow, deny)
 				VALUES ((SELECT * FROM page_id), $3, $4, $5)
 				ON CONFLICT (page_id, entity) DO UPDATE SET
@@ -352,7 +352,7 @@ class Database(commands.Cog):
 	async def unset_page_overwrites(self, *, guild_id, title, entity_id):
 		"""remove all of the allowed and denied overwrites for a page"""
 		command_tag = await self.bot.pool.execute("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 			DELETE FROM page_permissions
 			WHERE
 				page_id = (SELECT * FROM page_id)
@@ -378,7 +378,7 @@ class Database(commands.Cog):
 
 		try:
 			return tuple(map(Permissions, await self.bot.pool.fetchrow("""
-				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+				WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 				INSERT INTO page_permissions (page_id, entity, allow, deny)
 				VALUES ((SELECT * FROM page_id), $3, $4, $5)
 				ON CONFLICT (page_id, entity) DO UPDATE SET
@@ -396,7 +396,7 @@ class Database(commands.Cog):
 		This is equivalent to the "grey check" in Discord's UI.
 		"""
 		return tuple(map(Permissions, await self.bot.pool.fetchrow("""
-			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND LOWER(title) = LOWER($2))
+			WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 			UPDATE page_permissions SET
 				allow = allow & ~$4::INTEGER,
 				deny = deny & ~$4::INTEGER

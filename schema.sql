@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS pages(
 	-- but this way is easier
 	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (LOWER(title), guild);
+CREATE UNIQUE INDEX IF NOT EXISTS pages_uniq_idx ON pages (lower(title), guild);
 CREATE INDEX IF NOT EXISTS pages_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS revisions(
