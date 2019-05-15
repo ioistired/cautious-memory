@@ -36,7 +36,7 @@ def code_block(s, *, language=''):
 	return f'```{language}\n{s}\n```'
 
 def convert_emoji(s) -> discord.PartialEmoji:
-	match = re.match(r'<?(a?):([A-Za-z0-9_]+):([0-9]{17,})>?', s)
+	match = re.search(r'<?(a?):([A-Za-z0-9_]+):([0-9]{17,})>?', s)
 	if match:
 		return discord.PartialEmoji(animated=match[1], name=match[2], id=int(match[3]))
 	return discord.PartialEmoji(animated=None, name=s, id=None)
