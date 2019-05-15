@@ -106,7 +106,13 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='grant-page')
-	async def grant_page_permissions(self, ctx, role_or_member: Entity, page_title, *permissions: Permissions):
+	async def grant_page_permissions(
+		self,
+		ctx,
+		role_or_member: Entity,
+		page_title: commands.clean_content,
+		*permissions: Permissions
+	):
 		"""Grant permissions to a certain role on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
@@ -118,7 +124,13 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='deny-page')
-	async def deny_page_permissions(self, ctx, role_or_member: Entity, page_title, *permissions: Permissions):
+	async def deny_page_permissions(
+		self,
+		ctx,
+		role_or_member: Entity,
+		page_title: commands.clean_content,
+		*permissions: Permissions
+	):
 		"""Deny permissions to a certain role or member on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
@@ -130,7 +142,13 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='uncheck-page')
-	async def unset_page_permissions(self, ctx, role_or_member: Entity, page_title, *permissions: Permissions):
+	async def unset_page_permissions(
+		self,
+		ctx,
+		role_or_member: Entity,
+		page_title: commands.clean_content,
+		*permissions: Permissions
+	):
 		""""Uncheck" (neither allow nor deny) certain permissions for a role or member on a page.
 
 		This is equivalent to the "grey check mark" in Discord.
