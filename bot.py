@@ -56,9 +56,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			*args, **kwargs)
 
 	def process_config(self):
-		self.owners = set(self.config.get('extra_owners', ()))
-		if self.config.get('primary_owner'):
-			self.owners.add(self.config['primary_owner'])
+		self.owners = set(self.config.get('extra_owners', []))
 
 		with contextlib.suppress(KeyError):
 			self.config['copyright_license_file'] = os.path.join(BASE_DIR, self.config['copyright_license_file'])
