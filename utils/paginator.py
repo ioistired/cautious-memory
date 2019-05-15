@@ -107,13 +107,6 @@ class Pages:
 		return self.entries[base:base + self.per_page]
 
 	def get_content(self, entries, page, *, first=False):
-		return None
-
-	def get_embed(self, entries, page, *, first=False):
-		self.prepare_embed(entries, page, first=first)
-		return self.embed
-
-	def prepare_embed(self, entries, page, *, first=False):
 		p = []
 		if self.numbered:
 			for index, entry in enumerate(entries, 1 + ((page - 1) * self.per_page)):
@@ -122,19 +115,20 @@ class Pages:
 			for entry in entries:
 				p.append(str(entry))
 
-		if self.maximum_pages > 1:
-			if self.show_entry_count:
-				text = f'Page {page}⁄{self.maximum_pages} ({len(self.entries)} entries)'
-			else:
-				text = f'Page {page}⁄{self.maximum_pages}'
-
-			self.embed.set_footer(text=text)
-
 		if self.paginating and first:
 			p.append('')
 			p.append('Confused? React with \N{INFORMATION SOURCE} for more info.')
 
-		self.embed.description = '\n'.join(p)
+		if self.maximum_pages > 1:
+			if self.show_entry_count:
+				p.append(f'Page {page}⁄{self.maximum_pages} ({len(self.entries)} entries)')
+			else:
+				p.append(f'Page {page}⁄{self.maximum_pages}')
+
+		return '\n'.join(p)
+
+	def get_embed(self, entries, page, *, first=False):
+		return None
 
 	async def show_page(self, page, *, first=False):
 		self.current_page = page
@@ -150,7 +144,8 @@ class Pages:
 			return
 
 		self.message = await self.channel.send(content=content, embed=embed)
-		await self.add_reactions()
+		# allow people to react before we finish adding reactions
+		self.bot.loop.create_task(self.add_reactions())
 
 	async def add_reactions(self):
 		for reaction in self.reaction_emojis:
@@ -229,10 +224,8 @@ class Pages:
 		for emoji, func in self.reaction_emojis.items():
 			messages.append(f'{emoji} {func.__doc__}')
 
-		self.embed.description = '\n'.join(messages)
-		self.embed.clear_fields()
-		self.embed.set_footer(text=f'We were on page {self.current_page} before this message.')
-		await self.message.edit(embed=self.embed)
+		messages.append(f'We were on page {self.current_page} before this message.')
+		await self.message.edit(content='\n'.join(messages))
 
 		async def go_back_to_current_page():
 			await asyncio.sleep(60.0)
