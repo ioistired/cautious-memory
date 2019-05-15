@@ -35,14 +35,14 @@ class WikiPage(commands.Converter):
 	async def convert(self, ctx, title):
 		title = await commands.clean_content().convert(ctx, title)
 		actual_perms = await ctx.cog.permissions_db.permissions_for(ctx.author, title)
-		if self.required_perms in actual_perms or ctx.author.guild_permissions.administrator:
+		if self.required_perms in actual_perms or await ctx.is_privileged(ctx.author):
 			return title
 		raise errors.MissingPermissionsError(self.required_perms)
 
 def has_wiki_permissions(required_perms):
 	async def pred(ctx):
 		member_perms = await ctx.cog.permissions_db.member_permissions(ctx.author)
-		if required_perms in member_perms or ctx.author.guild_permissions.administrator:
+		if required_perms in member_perms or await ctx.is_privileged(ctx.author):
 			return True
 		raise errors.MissingPermissionsError(required_perms)
 	return commands.check(pred)

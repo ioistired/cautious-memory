@@ -35,7 +35,7 @@ class UserEditableRole(commands.Converter):
 			else:
 				raise
 
-		if ctx.author.guild_permissions.administrator:
+		if await ctx.is_privileged(ctx.author):
 			return role
 
 		highest_role = await ctx.cog.db.highest_manage_permissions_role(ctx.author)

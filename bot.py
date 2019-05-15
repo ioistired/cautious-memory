@@ -114,6 +114,9 @@ class CautiousMemory(commands.AutoShardedBot):
 		context = await self.get_context(message)
 		await self.invoke(context)
 
+	async def get_context(self, message, cls=None):
+		return await super().get_context(message, cls=cls or CustomContext)
+
 	# based on https://github.com/Rapptz/RoboDanny/blob/ca75fae7de132e55270e53d89bc19dd2958c2ae0/bot.py#L77-L85
 	async def on_command_error(self, context, error):
 		if isinstance(error, commands.NoPrivateMessage):
@@ -194,6 +197,10 @@ class CautiousMemory(commands.AutoShardedBot):
 		):
 			self.load_extension(extension)
 			logger.info('Successfully loaded %s', extension)
+
+class CustomContext(commands.Context):
+	async def is_privileged(self, member):
+		return member.guild_permissions.administrator or await self.bot.is_owner(member)
 
 if __name__ == '__main__':
 	with open(os.path.join(BASE_DIR, 'config.json5')) as f:
