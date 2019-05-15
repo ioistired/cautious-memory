@@ -33,7 +33,7 @@ class WikiPage(commands.Converter):
 		self.required_perms = required_perms
 
 	async def convert(self, ctx, title):
-		title = discord.utils.escape_mentions(title)
+		title = await commands.clean_content().convert(ctx, title)
 		actual_perms = await ctx.cog.permissions_db.permissions_for(ctx.author, title)
 		if self.required_perms in actual_perms or ctx.author.guild_permissions.administrator:
 			return title
