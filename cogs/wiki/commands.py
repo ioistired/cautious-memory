@@ -18,8 +18,7 @@ import difflib
 import io
 import typing
 
-from ben_cogs.misc import Misc
-natural_time = Misc.natural_time
+from ben_cogs.misc import natural_time
 import discord
 from discord.ext import commands
 
