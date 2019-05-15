@@ -61,6 +61,6 @@ def load_sql(fp):
 			queries[current_tag].append(line)
 
 	for tag, query in queries.items():
-		queries[tag] = '\n'.join(query)
+		queries[tag] = ''.join(query)
 
 	return queries
