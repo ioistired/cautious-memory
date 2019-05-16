@@ -6,8 +6,9 @@ FROM role_permissions FULL OUTER JOIN page_permissions ON (role = entity)
 WHERE
 	entity = ANY ($3)
 	OR role = ANY ($3)
-	AND page_id = (SELECT * FROM page_id)
-	OR page_id IS NULL  -- in case there's no page permissions for some role
+	AND (
+		page_id = (SELECT * FROM page_id)
+		OR page_id IS NULL)  -- in case there's no page permissions for some role
 
 -- :name member_permissions
 -- params: role_ids
