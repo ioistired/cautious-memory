@@ -106,9 +106,7 @@ class PermissionsDatabase(commands.Cog):
 	# to deny all perms just use deny_role_permissions
 
 	async def allow_role_permissions(self, role_id, new_perms: Permissions):
-		return Permissions(await self.bot.pool.fetchval(
-			self.queries.allow_role_permissions,
-			role_id, new_perms.value, (new_perms | Permissions.default).value))
+		return Permissions(await self.bot.pool.fetchval(self.queries.allow_role_permissions, role_id, new_perms.value))
 
 	async def deny_role_permissions(self, role_id, perms):
 		"""revoke a set of permissions from a role"""

@@ -45,9 +45,9 @@ ON CONFLICT (role) DO UPDATE SET
 	permissions = EXCLUDED.permissions
 
 -- :name allow_role_permissions
--- params: role_id, new_perms.value, new_perms | Permissions.default
+-- params: role_id, new_perms
 INSERT INTO role_permissions(role, permissions)
-VALUES ($1, $3)
+VALUES ($1, $2)
 ON CONFLICT (role) DO UPDATE SET
 	permissions = role_permissions.permissions | $2
 RETURNING permissions
