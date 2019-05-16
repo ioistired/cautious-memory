@@ -78,7 +78,9 @@ class PermissionsDatabase(commands.Cog):
 
 	async def member_permissions(self, member: discord.Member):
 		roles = [role.id for role in member.roles]
-		perms = await self.bot.pool.fetchval(self.queries.member_permissions, roles)
+		perms = await self.bot.pool.fetchval(
+			self.queries.member_permissions,
+			roles, member.guild.id, Permissions.default.value)
 		if perms is None:
 			return Permissions.default
 		return Permissions(perms)

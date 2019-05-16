@@ -1,8 +1,16 @@
 -- :name permissions_for
 -- params: guild_id, title, role_ids, Permissions.default.value
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
-SELECT coalesce(bit_or(permissions), $4) & ~coalesce(bit_or(deny), 0) | coalesce(bit_or(allow), 0)
-FROM role_permissions FULL OUTER JOIN page_permissions ON (role = entity)
+WITH
+	page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2)),
+	everyone_perms AS (SELECT permissions FROM role_permissions WHERE role = $1)
+SELECT
+	coalesce(bit_or(permissions), $4)
+	& ~coalesce(bit_or(deny), 0)
+	| coalesce(bit_or(allow), 0)
+	| coalesce((SELECT * FROM everyone_perms), $4)
+FROM
+	role_permissions
+	FULL OUTER JOIN page_permissions ON (role = entity)
 WHERE
 	entity = ANY ($3)
 	OR role = ANY ($3)
@@ -11,8 +19,9 @@ WHERE
 		OR page_id IS NULL)  -- in case there's no page permissions for some role
 
 -- :name member_permissions
--- params: role_ids
-SELECT bit_or(permissions)
+-- params: role_ids, guild_id, Permissions.default.value
+WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE role = $2)
+SELECT bit_or(permissions) | coalesce((SELECT * FROM everyone_perms), $3)
 FROM role_permissions
 WHERE role = ANY ($1)
 
