@@ -133,11 +133,11 @@ class Wiki(commands.Cog):
 		await self.db.delete_page(ctx.guild.id, title)
 		await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions successfully deleted.')
 
-	@commands.command()
+	@commands.command(ignore_extra=False)  # in case someone tries to not quote the new_title
 	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
 		"""Renames a wiki page.
 
-		If the old title or the new title have spaces in them, you must surround it in quotes.
+		If the old title or the new title have spaces in them, you must surround them in quotes.
 		"""
 		await self.db.rename_page(ctx.guild.id, title, new_title)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
