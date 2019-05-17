@@ -84,7 +84,7 @@ ON CONFLICT (page_id, entity) DO UPDATE SET
 	deny = EXCLUDED.deny
 
 -- :name unset_page_overwrites
--- guild_id, title, entity_id
+-- params: guild_id, title, entity_id
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 DELETE FROM page_permissions
 WHERE
