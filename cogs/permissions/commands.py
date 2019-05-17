@@ -92,7 +92,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
-		new_perms = await self.db.allow_role_permissions(role.id, perms)
+		new_perms = await self.db.allow_role_permissions(role, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='deny', aliases=['revoke'])
@@ -102,7 +102,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
-		new_perms = await self.db.deny_role_permissions(role.id, perms)
+		new_perms = await self.db.deny_role_permissions(role, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='grant-page')

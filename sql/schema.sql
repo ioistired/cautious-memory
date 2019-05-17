@@ -25,7 +25,8 @@ CREATE TABLE revisions(
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions;
 
 CREATE TABLE role_permissions(
-	role BIGINT PRIMARY KEY,
+	-- these are always roles, but the column is named "entity" to ease joining with page_permissions
+	entity BIGINT PRIMARY KEY,
 	permissions INTEGER NOT NULL);
 
 CREATE TABLE page_permissions(

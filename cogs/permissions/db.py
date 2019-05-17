@@ -72,17 +72,13 @@ class PermissionsDatabase(commands.Cog):
 		perms = await self.bot.pool.fetchval(
 			self.queries.permissions_for,
 			member.guild.id, title, roles, Permissions.default.value)
-		if perms is None:
-			return Permissions.default
 		return Permissions(perms)
 
 	async def member_permissions(self, member: discord.Member):
 		roles = [role.id for role in member.roles]
 		perms = await self.bot.pool.fetchval(
 			self.queries.member_permissions,
-			roles, member.guild.id, Permissions.default.value)
-		if perms is None:
-			return Permissions.default
+			member.guild.id, roles, Permissions.default.value)
 		return Permissions(perms)
 
 	async def highest_manage_permissions_role(self, member: discord.Member) -> typing.Optional[discord.Role]:
@@ -91,35 +87,49 @@ class PermissionsDatabase(commands.Cog):
 		manager_roles = [
 			member.guild.get_role(row[0])
 			for row in await self.bot.pool.fetch(
-				self.queries.highest_manage_permissions_role,
+				self.queries.manage_permissions_roles,
 				member_roles, Permissions.manage_permissions.value)]
 		manager_roles.sort()
 		return manager_roles[-1] if manager_roles else None
 
-	async def get_role_permissions(self, role_id):
-		return Permissions(await self.bot.pool.fetchval(self.queries.get_role_permissions, role_id))
+	async def get_role_permissions(self, role: discord.Role):
+		return Permissions(await self.bot.pool.fetchval(self.queries.get_role_permissions, role.id))
 
-	async def set_role_permissions(self, role_id, perms: Permissions):
-		await self.bot.pool.execute(self.queries.set_role_permissions, role_id, perms.value)
+	async def set_role_permissions(self, role: discord.Role, perms: Permissions):
+		await self.bot.pool.execute(self.queries.set_role_permissions, role.id, perms.value)
+
+	async def set_default_permissions(self, guild_id, *, connection=None):
+		"""If the guild has no @everyone permissions set up, set its permissions to the defailt.
+		This should be called whenever role permissions are updated.
+		"""
+		await (connection or self.bot.pool).execute(
+			self.queries.set_default_permissions,
+			guild_id, Permissions.default.value)
 
 	# no unset_role_permissions because unset means to give the default permissions
 	# to deny all perms just use deny_role_permissions
 
-	async def allow_role_permissions(self, role_id, new_perms: Permissions):
-		return Permissions(await self.bot.pool.fetchval(self.queries.allow_role_permissions, role_id, new_perms.value))
+	async def allow_role_permissions(self, role: discord.Role, new_perms: Permissions):
+		async with self.bot.pool.acquire() as conn:
+			if role.is_default:
+				await self.set_default_permissions(role.guild.id, connection=conn)
+			return Permissions(await conn.fetchval(self.queries.allow_role_permissions, role.id, new_perms.value))
 
-	async def deny_role_permissions(self, role_id, perms):
+	async def deny_role_permissions(self, role: discord.Role, perms):
 		"""revoke a set of permissions from a role"""
-		return Permissions(await self.bot.pool.fetchval(self.queries.deny_role_permissions, role_id, perms.value))
+		async with self.bot.pool.acquire() as conn:
+			if role.is_default:
+				await self.set_default_permissions(role.guild.id, connection=conn)
+			return Permissions(await conn.fetchval(self.queries.deny_role_permissions, role.id, perms.value))
 
-	async def get_page_overwrites(self, guild_id, title) -> typing.List[typing.Tuple[Permissions, Permissions]]:
+	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
-		# TODO figure out a way to raise an error on page not found instead of returning []
-		return [
-			tuple(map(Permissions, row))
-			for row in await self.bot.pool.fetch(
+		# TODO figure out a way to raise an error on page not found instead of returning {}
+		return {
+			entity: (Permissions(allow), Permissions(deny))
+			for entity, allow, deny in await self.bot.pool.fetch(
 				self.queries.get_page_overwrites,
-				guild_id, title)]
+				guild_id, title)}
 
 	async def set_page_overwrites(
 		self,
