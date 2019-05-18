@@ -13,7 +13,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from collections import defaultdict
 import re
 
 import discord
@@ -22,9 +21,6 @@ attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
 	'__setattr__': dict.__setitem__,
 	'__delattr__': dict.__delitem__})
-
-class attr_defaultdict(attrdict, defaultdict):
-	pass
 
 def escape_code_blocks(s):
 	return s.replace('`', '`\N{zero width non-joiner}')
@@ -49,7 +45,7 @@ def load_sql(fp):
 	the file-like is not closed afterwards.
 	"""
 	# tag -> list[lines]
-	queries = attr_defaultdict(list)
+	queries = attrdict()
 	current_tag = ''
 
 	for line in fp:
@@ -58,7 +54,7 @@ def load_sql(fp):
 			current_tag = match[1]
 			continue
 		if current_tag:
-			queries[current_tag].append(line)
+			queries.setdefault(current_tag, []).append(line)
 
 	for tag, query in queries.items():
 		queries[tag] = ''.join(query)
