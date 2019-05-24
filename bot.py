@@ -132,10 +132,10 @@ class CautiousMemory(commands.AutoShardedBot):
 			await context.send(error)
 		elif (
 			isinstance(error, commands.CommandInvokeError)
-			and not context.cog or type(context.cog).cog_command_error is commands.Cog.cog_command_error  # not overridden
+			and (not context.cog or type(context.cog).cog_command_error is commands.Cog.cog_command_error)  # not overridden
 			and not hasattr(context.command, 'on_error')
 		):
-			logger.error('"%s" caused an exception', context.message.content)
+			logger.error('"%s" caused an exception <%s>', context.message.content, context.message.jump_url)
 			logger.error(''.join(traceback.format_tb(error.original.__traceback__)))
 			# pylint: disable=logging-format-interpolation
 			logger.error('{0.__class__.__name__}: {0}'.format(error.original))

@@ -56,10 +56,19 @@ class Wiki(commands.Cog):
 		return bool(ctx.guild)
 
 	@commands.command(aliases=['wiki'])
-	async def show(self, ctx, *, title: commands.clean_content):
+	async def show(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Shows you the contents of the page requested."""
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
+
+	@commands.command()
+	async def raw(self, ctx, *, title: WikiPage(Permissions.view)):
+		"""Shows the raw contents of a page.
+
+		This is with markdown escaped, which is useful for editing.
+		"""
+		page = await self.db.get_page(ctx.guild.id, title)
+		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
 
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
