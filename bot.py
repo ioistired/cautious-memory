@@ -192,6 +192,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			'jishaku',
 			'ben_cogs.misc',
 			'ben_cogs.debug',
+			'ben_cogs.sql',
 			'ben_cogs.stats',
 		):
 			self.load_extension(extension)
