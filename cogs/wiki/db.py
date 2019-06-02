@@ -95,7 +95,7 @@ class WikiDatabase(commands.Cog):
 				raise errors.PageExistsError
 
 			try:
-				await self._create_revision(conn, page_id, content, author_id)
+				await conn.execute(self.queries.create_first_revision, page_id, author_id, content, title)
 			except:
 				await tr.rollback()
 				raise
@@ -108,21 +108,19 @@ class WikiDatabase(commands.Cog):
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await self._create_revision(conn, page_id, new_content, author_id)
+			await conn.execute(self.queries.create_revision, page_id, author_id, new_content)
 
-	async def rename_page(self, guild_id, title, new_title):
-		try:
-			command_tag = await self.bot.pool.execute(self.queries.rename_page, guild_id, title, new_title)
-		except asyncpg.UniqueViolationError:
-			raise errors.PageExistsError
+	async def rename_page(self, guild_id, title, new_title, *, author_id):
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			try:
+				page_id = await conn.fetchval(self.queries.rename_page, guild_id, title, new_title)
+			except asyncpg.UniqueViolationError:
+				raise errors.PageExistsError
 
-		# UPDATE 1 -> 1
-		rows_updated = int(command_tag.split()[-1])
-		if not rows_updated:
-			raise errors.PageNotFoundError(title)
+			if page_id is None:
+				raise errors.PageNotFoundError(title)
 
-	async def _create_revision(self, connection, page_id, content, author_id):
-		await connection.execute(self.queries.create_revision, page_id, author_id, content)
+			await conn.execute(self.queries.log_page_rename, page_id, author_id, new_title)
 
 	## Permissions
 

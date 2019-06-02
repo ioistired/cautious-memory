@@ -49,8 +49,8 @@ def has_wiki_permissions(required_perms):
 class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.db = self.bot.get_cog('WikiDatabase')
-		self.permissions_db = self.bot.get_cog('PermissionsDatabase')
+		self.db = self.bot.cogs['WikiDatabase']
+		self.permissions_db = self.bot.cogs['PermissionsDatabase']
 
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
@@ -148,7 +148,7 @@ class Wiki(commands.Cog):
 
 		If the old title or the new title have spaces in them, you must surround them in quotes.
 		"""
-		await self.db.rename_page(ctx.guild.id, title, new_title)
+		await self.db.rename_page(ctx.guild.id, title, new_title, author_id=ctx.author.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
@@ -201,6 +201,9 @@ class Wiki(commands.Cog):
 				f'Use the {ctx.prefix}history command to get valid revision IDs.')
 			return
 
+		if new.content is None or old.content is None:
+			return await ctx.send(self.renamed_revision_summary(ctx.guild, new, old_title=old.title))
+
 		if Permissions.edit not in await self.permissions_db.permissions_for(ctx.author, new.title):
 			raise errors.MissingPermissionsError(Permissions.edit)
 
@@ -222,13 +225,21 @@ class Wiki(commands.Cog):
 		del old, new  # save a bit of memory while we paginate
 		await TextPages(ctx, '\n'.join(map(utils.escape_code_blocks, diff)), prefix='```diff\n').begin()
 
-	@staticmethod
-	def revision_summary(guild, revision, *, include_title=False):
-		author = guild.get_member(revision.author) or f'unknown user with ID {revision.author}'
+	@classmethod
+	def revision_summary(cls, guild, revision):
+		author = cls.format_member(guild, revision.author)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
-		if include_title:
-			return f'{revision.title} was revised by {author_at}'
-		return f'#{revision.revision_id}, revised by {author_at}'
+		return f'#{revision.revision_id}) {revision.title} was revised by {author_at}'
+
+	@classmethod
+	def renamed_revision_summary(cls, guild, revision, *, old_title):
+		author = cls.format_member(guild, revision.author)
+		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
+		return f'{old_title} was renamed to {revision.title} by {author_at} with no changes'
+
+	@classmethod
+	def format_member(cls, guild, member_id):
+		return guild.get_member(member_id) or f'unknown user with ID {member.id}'
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))
