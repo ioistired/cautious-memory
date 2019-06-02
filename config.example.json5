@@ -31,7 +31,7 @@
 	copyright_license_file: 'license-notice.txt',
 
 	// this URL will be sent to users when they request the source code of the bot
-	repo: 'https://gitlab.com/lambda/cautious-memory',
+	repo: 'https://owo.codes/lambda/cautious-memory',
 
 	// enter the invite code portion only
 	// this will be sent to users when they request bot support
