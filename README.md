@@ -5,7 +5,34 @@ A community wiki for Discord.
 
 ## Self-hosting
 
-TODO
+```
+$ sudo -u postgres psql
+create database cm;
+\c cm
+create extension pg_trgm;
+^D
+$ psql cm -f sql/schema.sql
+$ psql cm -f sql/functions.sql
+```
+
+Copy config.example.json5 to config.json5 and edit appropriately. Make a virtualenv for the bot,
+and `pip install -r requirements.txt`. Then just `python bot.py`.
+
+### Migrations
+
+`pip install migra`, then `migra postgresql://your-production-connection-string postgresql://your-local-connection-string --unsafe`.
+Review the changes, and execute them against prod. For me this usually looks like:
+
+```
+$ dropdb cm; createdb cm
+$ psql -f sql/schema.sql
+$ psql -f sql/functions.sql
+$ ssh -NfL 5433:localhost:5432 bots@myserver
+$ migra postgresql://bots:password@localhost:5433/cm postgresql:///cm --unsafe > migrate.sql
+$ edit migrate.sql  # as necessary
+$ psql postgresql://bots:password@localhost:5433/cm -f migrate.sql
+$ rm migrate.sql
+```
 
 ## Credits
 
