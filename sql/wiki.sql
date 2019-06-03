@@ -17,7 +17,7 @@ WHERE guild = $1 AND lower(title) = $2
 -- :name get_page_revisions
 -- params: guild_id, title
 SELECT
-	page_id, revision_id, author, content, revised,
+	page_id, revision_id, author, content, revised, pages.title AS current_title,
 	coalesce_agg(new_title) OVER (PARTITION BY page_id ORDER BY revision_id ASC) AS title
 FROM pages INNER JOIN revisions USING (page_id)
 WHERE
@@ -61,7 +61,7 @@ LIMIT 100
 WITH all_revisions AS (
 	-- TODO dedupe from get_page_revisions (use a stored proc?)
 	SELECT
-		page_id, revision_id, author, content, revised,
+		page_id, revision_id, author, content, revised, pages.title AS current_title,
 		coalesce_agg(new_title) OVER (PARTITION BY page_id ORDER BY revision_id ASC) AS title
 	FROM pages INNER JOIN revisions USING (page_id)
 	WHERE
