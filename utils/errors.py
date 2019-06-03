@@ -32,7 +32,7 @@ class PageExistsError(PageError):
 class PageNotFoundError(PageError):
 	def __init__(self, name):
 		self.name = name
-		super().__init__(f'A page called {name} does not exist.')
+		super().__init__(f'A page called “{name}” does not exist.')
 
 class MissingPermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
