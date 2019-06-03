@@ -92,7 +92,7 @@ class Wiki(commands.Cog):
 		cutoff = datetime.datetime.utcnow() - cutoff_delta
 
 		entries = [
-			self.revision_summary(ctx.guild, revision, include_title=True)
+			self.revision_summary(ctx.guild, revision)
 			async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff)]
 
 		if not entries:
