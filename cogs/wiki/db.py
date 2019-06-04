@@ -84,23 +84,22 @@ class WikiDatabase(commands.Cog):
 		return results
 
 	async def create_page(self, title, content, *, guild_id, author_id):
-		async with self.bot.pool.acquire() as conn:
-			tr = conn.transaction()
-			await tr.start()
-
+		async with self.bot.pool.acquire() as conn, conn.transaction():
 			try:
 				page_id = await conn.fetchval(self.queries.create_page, guild_id, title)
 			except asyncpg.UniqueViolationError:
-				await tr.rollback()
 				raise errors.PageExistsError
 
-			try:
-				await conn.execute(self.queries.create_first_revision, page_id, author_id, content, title)
-			except:
-				await tr.rollback()
-				raise
+			await conn.execute(self.queries.create_first_revision, page_id, author_id, content, title)
 
-			await tr.commit()
+	async def alias_page(self, guild_id, alias_title, target_title):
+		try:
+			await self.bot.pool.execute(self.queries.alias_page, guild_id, alias_title, target_title)
+		except asyncpg.NotNullViolationError:
+			# the CTE returned no rows
+			raise errors.PageNotFoundError(target_title)
+		except asyncpg.UniqueViolationError:
+			raise errors.PageExistsError
 
 	async def revise_page(self, title, new_content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():

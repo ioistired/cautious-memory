@@ -142,6 +142,19 @@ class Wiki(commands.Cog):
 		await self.db.delete_page(ctx.guild.id, title)
 		await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions successfully deleted.')
 
+	@commands.command(ignore_extra=False)
+	@has_wiki_permissions(Permissions.create)
+	async def alias(self, ctx, new_name: commands.clean_content, old_name: WikiPage(Permissions.view)):
+		"""Creates an alias for a pre-existing page.
+
+		You own the page alias. However, when the original page is deleted the alias is deleted as well.
+		Page aliases cannot be edited. You must delete the alias and remake it to point it to a new location.
+
+		You must have the "create pages" permission, and must be able to view the page you are trying to alias.
+		"""
+		await self.db.alias_page(ctx.guild.id, new_name, old_name)
+		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
+
 	@commands.command(ignore_extra=False)  # in case someone tries to not quote the new_title
 	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
 		"""Renames a wiki page.

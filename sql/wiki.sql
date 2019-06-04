@@ -1,13 +1,15 @@
 -- :name get_page
 -- params: guild_id, title
-SELECT *
+SELECT *, aliased IS NOT NULL AS is_alias
 FROM
-	pages
-	INNER JOIN revisions
-		ON pages.latest_revision = revisions.revision_id
+	aliases
+	RIGHT JOIN pages USING (page_id)
+	INNER JOIN revisions ON pages.latest_revision = revisions.revision_id
 WHERE
 	guild = $1
-	AND lower(title) = lower($2)
+	AND (
+		lower(aliases.title) = lower($2)
+		OR lower(pages.title) = lower($2))
 
 -- :name delete_page
 -- params: guild_id, title
@@ -98,6 +100,17 @@ WHERE
 	lower(title) = lower($2)
 	AND guild = $1
 RETURNING page_id
+
+-- :name alias_page
+-- params: guild_id, alias_title, target_title
+WITH page_id AS (
+	SELECT page_id
+	FROM pages
+	WHERE
+		guild = $1
+		AND lower(title) = LOWER($3))
+INSERT INTO aliases (page_id, title)
+VALUES ((SELECT * FROM page_id), $2)
 
 -- :name log_page_rename
 -- params: page_id, author_id, new_title

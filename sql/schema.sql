@@ -31,6 +31,13 @@ CREATE TABLE revisions(
 
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions;
 
+CREATE TABLE aliases(
+	title TEXT,
+	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
+	aliased TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
+
+CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), page_id);
+
 CREATE TABLE role_permissions(
 	-- these are always roles, but the column is named "entity" to ease joining with page_permissions
 	entity BIGINT PRIMARY KEY,
