@@ -168,6 +168,15 @@ class Wiki(commands.Cog):
 		await self.db.alias_page(ctx.guild.id, new_name, old_name)
 		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
 
+	@commands.command(ignore_extra=False)
+	@has_wiki_permissions(Permissions.create)
+	async def ln(self, ctx, target: WikiPage(Permissions.view), link_name: commands.clean_content):
+		"""Creates an alias for a pre-existing page.
+
+		This command is identical to the alias command except for the argument order.
+		"""
+		await ctx.invoke(self.alias, link_name, target)
+
 	@commands.command(ignore_extra=False)  # in case someone tries to not quote the new_title
 	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
 		"""Renames a wiki page.
