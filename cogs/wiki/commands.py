@@ -158,6 +158,9 @@ class Wiki(commands.Cog):
 	@commands.command(ignore_extra=False)
 	@has_wiki_permissions(Permissions.create)
 	async def alias(self, ctx, new_name: commands.clean_content, old_name: WikiPage(Permissions.view)):
+		# this docstring used is under the MIT License
+		# Copyright © 2015 Rapptz
+		# https://github.com/Rapptz/RoboDanny/blob/27304f6/cogs/tags.py#L305–L313
 		"""Creates an alias for a pre-existing page.
 
 		You own the page alias. However, when the original page is deleted the alias is deleted as well.
