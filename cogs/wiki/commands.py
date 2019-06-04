@@ -164,6 +164,7 @@ class Wiki(commands.Cog):
 		Page aliases cannot be edited. You must delete the alias and remake it to point it to a new location.
 
 		You must have the "create pages" permission, and must be able to view the page you are trying to alias.
+		Any page name that has spaces must be surrounded in quotes.
 		"""
 		await self.db.alias_page(ctx.guild.id, new_name, old_name)
 		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
