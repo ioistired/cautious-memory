@@ -11,6 +11,22 @@ WHERE
 		lower(aliases.title) = lower($2)
 		OR lower(pages.title) = lower($2))
 
+-- :name get_page_no_alias
+-- params: guild_id, title
+SELECT title AS target, NULL AS alias
+FROM pages
+WHERE
+	guild = $1
+	AND lower(pages.title) = lower($2)
+
+-- :name get_alias
+-- params: guild_id, title
+SELECT *, pages.title AS target, aliases.title AS alias
+FROM aliases RIGHT JOIN pages USING (page_id)
+WHERE
+	guild = $1
+	AND lower(aliases.title) = lower($2)
+
 -- :name delete_page
 -- params: guild_id, title
 DELETE FROM pages

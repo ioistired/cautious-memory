@@ -61,6 +61,16 @@ class Wiki(commands.Cog):
 		page = await self.db.get_page(ctx.guild.id, title)
 		await ctx.send(page.content)
 
+	@commands.command(aliases=['readlink'])
+	@has_wiki_permissions(Permissions.view)
+	async def info(self, ctx, *, title: commands.clean_content):
+		"""Tells you whether a page is an alias."""
+		page = await self.db.resolve_page(ctx.guild.id, title)
+		if page.alias:
+			await ctx.send(f'“{page.alias}” is an alias to “{page.target}”.')
+		else:
+			await ctx.send(f'“{page.target}” is not an alias. Use the {ctx.prefix}history command for more information on it.')
+
 	@commands.command()
 	async def raw(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Shows the raw contents of a page.

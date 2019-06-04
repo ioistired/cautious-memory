@@ -53,6 +53,18 @@ class WikiDatabase(commands.Cog):
 		async for row in self.cursor(self.queries.get_recent_revisions, guild_id, cutoff):
 			yield row
 
+	async def resolve_page(self, guild_id, title):
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			row = await conn.fetchrow(self.queries.get_alias, guild_id, title)
+			if row is not None:
+				return attrdict(row)
+
+			row = await conn.fetchrow(self.queries.get_page_no_alias, guild_id, title)
+			if row is not None:
+				return attrdict(row)
+
+		raise errors.PageNotFoundError(title)
+
 	async def search_pages(self, guild_id, query):
 		"""return an async iterator over all pages whose title is similar to query"""
 		async for row in self.cursor(self.queries.search_pages, guild_id, query):
