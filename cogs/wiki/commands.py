@@ -133,14 +133,17 @@ class Wiki(commands.Cog):
 		await self.db.revise_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
-	@commands.command(aliases=['remove'])
+	@commands.command(aliases=['remove', 'rm', 'del'])
 	async def delete(self, ctx, title: WikiPage(Permissions.delete)):
-		"""Deletes a wiki page. This deletes all of its revisions, as well.
+		"""Deletes a wiki page. This deletes all of its revisions and aliases, as well.
 
 		You must have the "delete pages" permission.
 		"""
-		await self.db.delete_page(ctx.guild.id, title)
-		await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions successfully deleted.')
+		was_alias = await self.db.delete_page(ctx.guild.id, title)
+		if was_alias:
+			await ctx.send(f'{self.bot.config["success_emoji"]} Page alias successfully deleted.')
+		else:
+			await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions and aliases successfully deleted.')
 
 	@commands.command(ignore_extra=False)
 	@has_wiki_permissions(Permissions.create)

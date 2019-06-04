@@ -39,12 +39,6 @@ class WikiDatabase(commands.Cog):
 
 		return attrdict(row)
 
-	async def delete_page(self, guild_id, title):
-		command_tag = await self.bot.pool.execute(self.queries.delete_page, guild_id, title)
-		count = int(command_tag.split()[-1])
-		if not count:
-			raise errors.PageNotFoundError(title)
-
 	async def get_page_revisions(self, guild_id, title):
 		async for row in self.cursor(self.queries.get_page_revisions, guild_id, title):
 			yield row
@@ -120,6 +114,22 @@ class WikiDatabase(commands.Cog):
 				raise errors.PageNotFoundError(title)
 
 			await conn.execute(self.queries.log_page_rename, page_id, author_id, new_title)
+
+	async def delete_page(self, guild_id, title) -> bool:
+		"""delete a page or alias
+
+		return whether an alias was deleted
+		"""
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			command_tag = await conn.execute(self.queries.delete_alias, guild_id, title)
+			if command_tag.split()[-1] != '0':
+				return True
+
+			command_tag = await conn.execute(self.queries.delete_page, guild_id, title)
+			if command_tag.split()[-1] != '0':
+				return False
+
+		raise errors.PageNotFoundError(title)
 
 	## Permissions
 

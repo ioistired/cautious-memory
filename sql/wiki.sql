@@ -16,6 +16,17 @@ WHERE
 DELETE FROM pages
 WHERE guild = $1 AND lower(title) = $2
 
+-- :name delete_alias
+-- params: guild_id, title
+WITH aliases_cte AS (
+	SELECT aliases.title, page_id
+	FROM aliases INNER JOIN pages USING (page_id)
+	WHERE guild = $1 AND lower(aliases.title) = lower($2))
+DELETE FROM aliases
+WHERE EXISTS (
+	SELECT 1 FROM aliases_cte
+	WHERE (aliases.title, aliases.page_id) = (aliases_cte.title, aliases_cte.page_id))
+
 -- :name get_page_revisions
 -- params: guild_id, title
 SELECT
