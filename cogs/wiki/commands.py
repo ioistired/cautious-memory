@@ -144,7 +144,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['remove', 'rm', 'del'])
-	async def delete(self, ctx, title: WikiPage(Permissions.delete)):
+	async def delete(self, ctx, *, title: WikiPage(Permissions.delete)):
 		"""Deletes a wiki page. This deletes all of its revisions and aliases, as well.
 
 		You must have the "delete pages" permission.
