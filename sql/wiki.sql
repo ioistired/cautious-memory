@@ -53,8 +53,12 @@ ORDER BY revision_id DESC
 
 -- :name get_all_pages
 -- params: guild_id
-SELECT *
-FROM pages
+SELECT * FROM (
+	SELECT guild, title
+	FROM pages
+	UNION ALL
+	SELECT guild, title
+	FROM aliases ) AS why_do_subqueries_in_FROM_need_an_alias_smh_my_head
 WHERE guild = $1
 ORDER BY lower(title) ASC
 
@@ -69,8 +73,13 @@ ORDER BY revised DESC
 
 -- :name search_pages
 -- params: guild_id, query
-SELECT *
-FROM pages
+SELECT title
+FROM (
+	SELECT guild, title
+	FROM pages
+	UNION ALL
+	SELECT guild, title
+	FROM aliases) AS US_opposes_UN_loli_ban_uwu
 WHERE
 	guild = $1
 	AND title % $2
