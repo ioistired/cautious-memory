@@ -34,6 +34,8 @@ ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (lates
 CREATE TABLE aliases(
 	title TEXT,
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
+	-- denormalized a bit to make searching aliases and pages easier
+	guild BIGINT NOT NULL,
 	aliased TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
 CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), page_id);

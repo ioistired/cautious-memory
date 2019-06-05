@@ -21,8 +21,8 @@ WHERE
 
 -- :name get_alias
 -- params: guild_id, title
-SELECT *, pages.title AS target, aliases.title AS alias
-FROM aliases RIGHT JOIN pages USING (page_id)
+SELECT *
+FROM aliases
 WHERE
 	guild = $1
 	AND lower(aliases.title) = lower($2)
@@ -76,9 +76,7 @@ ORDER BY revised DESC
 -- :name search_pages
 -- params: guild_id, query
 SELECT *
-FROM
-	pages INNER JOIN revisions
-		ON pages.latest_revision = revisions.revision_id
+FROM pages
 WHERE
 	guild = $1
 	AND title % $2
@@ -130,14 +128,14 @@ RETURNING page_id
 
 -- :name alias_page
 -- params: guild_id, alias_title, target_title
-WITH page_id AS (
-	SELECT page_id
+WITH page AS (
+	SELECT page_id, guild
 	FROM pages
 	WHERE
 		guild = $1
 		AND lower(title) = LOWER($3))
-INSERT INTO aliases (page_id, title)
-VALUES ((SELECT * FROM page_id), $2)
+INSERT INTO aliases (page_id, guild, title)
+VALUES ((SELECT page_id FROM page), (SELECT guild FROM page), $2)
 
 -- :name log_page_rename
 -- params: page_id, author_id, new_title
