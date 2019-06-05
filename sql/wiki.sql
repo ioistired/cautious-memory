@@ -57,10 +57,7 @@ ORDER BY revision_id DESC
 -- :name get_all_pages
 -- params: guild_id
 SELECT *
-FROM
-	pages
-	INNER JOIN revisions
-		ON pages.latest_revision = revisions.revision_id
+FROM pages
 WHERE guild = $1
 ORDER BY lower(title) ASC
 
