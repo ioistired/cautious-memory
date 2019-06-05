@@ -1,15 +1,14 @@
 -- :name get_page
 -- params: guild_id, title
-SELECT *, aliased IS NOT NULL AS is_alias
+SELECT pages.page_id, created, content, coalesce(aliases.title, pages.title) AS title, aliased IS NOT NULL AS is_alias
 FROM
 	aliases
 	RIGHT JOIN pages USING (page_id)
 	INNER JOIN revisions ON pages.latest_revision = revisions.revision_id
 WHERE
-	guild = $1
-	AND (
-		lower(aliases.title) = lower($2)
-		OR lower(pages.title) = lower($2))
+	(aliases.guild = $1 OR pages.guild = $1)
+	AND
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
 
 -- :name get_page_no_alias
 -- params: guild_id, title
@@ -21,11 +20,9 @@ WHERE
 
 -- :name get_alias
 -- params: guild_id, title
-SELECT *
-FROM aliases
-WHERE
-	guild = $1
-	AND lower(aliases.title) = lower($2)
+SELECT pages.title AS target, aliases.title AS alias
+FROM aliases INNER JOIN pages USING (page_id)
+WHERE aliases.guild = $1 AND lower(aliases.title) = lower($2)
 
 -- :name delete_page
 -- params: guild_id, title
@@ -37,7 +34,7 @@ WHERE guild = $1 AND lower(title) = $2
 WITH aliases_cte AS (
 	SELECT aliases.title, page_id
 	FROM aliases INNER JOIN pages USING (page_id)
-	WHERE guild = $1 AND lower(aliases.title) = lower($2))
+	WHERE aliases.guild = $1 AND lower(aliases.title) = lower($2))
 DELETE FROM aliases
 WHERE EXISTS (
 	SELECT 1 FROM aliases_cte
