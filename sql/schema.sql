@@ -38,7 +38,8 @@ CREATE TABLE aliases(
 	guild BIGINT NOT NULL,
 	aliased TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
 
-CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), page_id);
+CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), guild);
+CREATE INDEX aliases_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
 
 CREATE TABLE role_permissions(
 	-- these are always roles, but the column is named "entity" to ease joining with page_permissions
