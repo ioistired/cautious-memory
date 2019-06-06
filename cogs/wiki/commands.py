@@ -227,6 +227,7 @@ class Wiki(commands.Cog):
 
 		To get the revision ID you can use the history command.
 		The revisions will always be compared from oldest to newest, regardless of the order you specify.
+		You need the "edit pages" permission to use this command.
 		"""
 		if revision_id_1 == revision_id_2:
 			await ctx.send('Provided revision IDs must be distinct.')
