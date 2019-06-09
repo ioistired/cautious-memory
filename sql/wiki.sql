@@ -6,7 +6,7 @@ FROM
 	RIGHT JOIN pages USING (page_id)
 	INNER JOIN revisions ON pages.latest_revision = revisions.revision_id
 WHERE
-	(aliases.guild = $1 OR pages.guild = $1)
+	pages.guild = $1
 	AND
 	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
 
@@ -170,6 +170,6 @@ WHERE page_id = $1
 WITH page AS (
 	SELECT page_id
 	FROM aliases RIGHT JOIN pages USING (page_id)
-	WHERE guild_id = $1 AND title = $2)
+	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
 INSERT INTO page_usage_history (page_id)
 VALUES ((SELECT * FROM page))
