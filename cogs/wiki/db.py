@@ -32,8 +32,8 @@ class WikiDatabase(commands.Cog):
 		with open(os.path.join(SQL_DIR, 'wiki.sql')) as f:
 			self.queries = load_sql(f)
 
-	async def get_page(self, guild_id, title):
-		row = await self.bot.pool.fetchrow(self.queries.get_page, guild_id, title)
+	async def get_page(self, guild_id, title, *, connection=None):
+		row = await (connection or self.bot.pool).fetchrow(self.queries.get_page, guild_id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
@@ -142,6 +142,9 @@ class WikiDatabase(commands.Cog):
 				return False
 
 		raise errors.PageNotFoundError(title)
+
+	async def log_page_use(self, guild_id, title, *, connection=None):
+		await (connection or self.bot.pool).execute(self.queries.log_page_use, guild_id, title)
 
 	## Permissions
 

@@ -58,7 +58,9 @@ class Wiki(commands.Cog):
 	@commands.command(aliases=['wiki'])
 	async def show(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Shows you the contents of the page requested."""
-		page = await self.db.get_page(ctx.guild.id, title)
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
+			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
@@ -77,7 +79,9 @@ class Wiki(commands.Cog):
 
 		This is with markdown escaped, which is useful for editing.
 		"""
-		page = await self.db.get_page(ctx.guild.id, title)
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
+			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
 		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
 
 	@commands.command(aliases=['pages'])
