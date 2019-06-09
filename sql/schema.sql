@@ -24,7 +24,7 @@ CREATE TABLE revisions(
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 
 	-- TODO find a way to make this conditional
-	-- ideally this check would not apply to the first revision as that makes finding then title for
+	-- ideally this check would not apply to the first revision as that makes finding the then title for
 	-- each revision easier
 	-- CHECK (num_nonnulls(content, new_title) = 1)
 );
@@ -40,6 +40,12 @@ CREATE TABLE aliases(
 
 CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), guild);
 CREATE INDEX aliases_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
+
+CREATE TABLE page_usage_history(
+	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
+	time TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'UTC'));
+
+CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 
 CREATE TABLE role_permissions(
 	-- these are always roles, but the column is named "entity" to ease joining with page_permissions

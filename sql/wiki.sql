@@ -164,3 +164,12 @@ WITH revision AS (
 UPDATE pages
 SET latest_revision = (SELECT * FROM revision)
 WHERE page_id = $1
+
+-- :name log_page_use
+-- params: guild_id, title
+WITH page AS (
+	SELECT page_id
+	FROM aliases RIGHT JOIN pages USING (page_id)
+	WHERE guild_id = $1 AND title = $2)
+INSERT INTO page_usage_history (page_id)
+VALUES ((SELECT * FROM page))
