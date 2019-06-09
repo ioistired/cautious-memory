@@ -180,7 +180,7 @@ WITH page AS (
 	SELECT page_id
 	FROM aliases RIGHT JOIN pages USING (page_id)
 	WHERE pages.guild = $1 AND
-	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
 SELECT count(*)
 FROM page_usage_history
-WHERE page_id = (SELECT * FROM page) AND date > $3
+WHERE page_id = (SELECT * FROM page) AND time > $3

@@ -67,11 +67,18 @@ class Wiki(commands.Cog):
 	@has_wiki_permissions(Permissions.view)
 	async def info(self, ctx, *, title: commands.clean_content):
 		"""Tells you whether a page is an alias."""
-		page = await self.db.resolve_page(ctx.guild.id, title)
+
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page = await self.db.resolve_page(ctx.guild.id, title, connection=conn)
+			usage_count = await self.db.get_page_uses(ctx.guild.id, title, connection=conn)
+
 		if page.alias:
-			await ctx.send(f'“{page.alias}” is an alias to “{page.target}”.')
+			await ctx.send(
+				f'“{page.alias}” is an alias to “{page.target}”. The original was used {usage_count} times recently.')
 		else:
-			await ctx.send(f'“{page.target}” is not an alias. Use the {ctx.prefix}history command for more information on it.')
+			await ctx.send(
+				f'“{page.target}” is not an alias. It was used {usage_count} times recently. '
+				f'Use the {ctx.prefix}history command for more information on it.')
 
 	@commands.command()
 	async def raw(self, ctx, *, title: WikiPage(Permissions.view)):

@@ -53,8 +53,8 @@ class WikiDatabase(commands.Cog):
 		async for row in self.cursor(self.queries.get_recent_revisions, guild_id, cutoff):
 			yield row
 
-	async def resolve_page(self, guild_id, title):
-		async with self.bot.pool.acquire() as conn, conn.transaction():
+	async def resolve_page(self, guild_id, title, *, connection=None):
+		async def inner(conn):
 			row = await conn.fetchrow(self.queries.get_alias, guild_id, title)
 			if row is not None:
 				return attrdict(row)
@@ -63,7 +63,13 @@ class WikiDatabase(commands.Cog):
 			if row is not None:
 				return attrdict(row)
 
-		raise errors.PageNotFoundError(title)
+			raise errors.PageNotFoundError(title)
+
+		if connection is None:
+			async with self.bot.pool.acquire() as conn, conn.transaction():
+				return await inner(conn)
+
+		return await inner(connection)
 
 	async def search_pages(self, guild_id, query):
 		"""return an async iterator over all pages whose title is similar to query"""
@@ -88,6 +94,10 @@ class WikiDatabase(commands.Cog):
 			raise ValueError('one or more revision IDs not found')
 
 		return results
+
+	async def get_page_uses(self, guild_id, title, *, cutoff=None, connection=None):
+		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		return await (connection or self.bot.pool).fetchval(self.queries.get_page_uses, guild_id, title, cutoff)
 
 	async def create_page(self, title, content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():
