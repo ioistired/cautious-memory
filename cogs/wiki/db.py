@@ -95,9 +95,38 @@ class WikiDatabase(commands.Cog):
 
 		return results
 
-	async def get_page_uses(self, guild_id, title, *, cutoff=None, connection=None):
+	async def page_count(self, guild_id, *, connection=None):
+		return await (connection or self.bot.pool).fetchval(self.queries.page_count, guild_id)
+
+	async def revisions_count(self, guild_id, *, connection=None):
+		return await (connection or self.bot.pool).fetchval(self.queries.revisions_count, guild_id)
+
+	async def page_uses(self, guild_id, title, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return await (connection or self.bot.pool).fetchval(self.queries.get_page_uses, guild_id, title, cutoff)
+		return await (connection or self.bot.pool).fetchval(self.queries.page_uses, guild_id, title, cutoff)
+
+	async def page_revisions_count(self, guild_id, title, *, connection=None):
+		return await (connection or self.bot.pool).fetchval(self.queries.page_revisions_count, guild_id, title)
+
+	async def top_page_editors(self, guild_id, title, *, cutoff=None, connection=None):
+		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		return list(map(attrdict, await (connection or self.bot.pool).fetch(
+			self.queries.top_page_editors,
+			guild_id, title, cutoff)))
+
+	async def total_page_uses(self, guild_id, *, cutoff=None, connection=None):
+		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		return await (connection or self.bot.pool).fetchval(self.queries.total_page_uses, guild_id, cutoff)
+
+	async def top_pages(self, guild_id, *, cutoff=None, connection=None):
+		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		return list(map(attrdict, await (connection or self.bot.pool).fetch(self.queries.top_pages, guild_id, cutoff)))
+
+	async def top_editors(self, guild_id, *, cutoff=None, connection=None):
+		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		return list(map(attrdict, await (connection or self.bot.pool).fetch(
+			self.queries.top_editors,
+			guild_id, cutoff)))
 
 	async def create_page(self, title, content, *, guild_id, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():

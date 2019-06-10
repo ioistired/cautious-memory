@@ -67,18 +67,63 @@ class Wiki(commands.Cog):
 	@has_wiki_permissions(Permissions.view)
 	async def info(self, ctx, *, title: commands.clean_content):
 		"""Tells you whether a page is an alias."""
-
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page = await self.db.resolve_page(ctx.guild.id, title, connection=conn)
-			usage_count = await self.db.get_page_uses(ctx.guild.id, title, connection=conn)
+		page = await self.db.resolve_page(ctx.guild.id, title)
 
 		if page.alias:
-			await ctx.send(
-				f'“{page.alias}” is an alias to “{page.target}”. The original was used {usage_count} times recently.')
+			await ctx.send(f'“{page.alias}” is an alias to “{page.target}”.')
 		else:
 			await ctx.send(
-				f'“{page.target}” is not an alias. It was used {usage_count} times recently. '
-				f'Use the {ctx.prefix}history command for more information on it.')
+				f'“{page.target}” is not an alias. Use the {ctx.prefix}history command for more information on it.')
+
+	@commands.command()
+	async def stats(self, ctx, *, title: WikiPage(Permissions.view) = None):
+		"""Shows server-wide statistics on page usage and revision."""
+		if title is None:
+			await self.guild_stats(ctx)
+		else:
+			await self.page_stats(ctx, title)
+
+	async def guild_stats(self, ctx):
+		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		e = discord.Embed(title='Page stats')
+		# no transaction because maybe doing a lot of COUNTing would require table wide locks
+		# to maintain consistency (dunno, just a hunch)
+		async with self.bot.pool.acquire() as conn:
+			page_count = await self.db.page_count(ctx.guild.id, connection=conn)
+			revisions_count = await self.db.revisions_count(ctx.guild.id, connection=conn)
+			total_page_uses = await self.db.total_page_uses(ctx.guild.id, cutoff=cutoff, connection=conn)
+			e.description = f'{page_count} pages, {revisions_count} revisions, {total_page_uses} recent page uses'
+
+			first_place = ord('🥇')
+
+			top_pages = await self.db.top_pages(ctx.guild.id, cutoff=cutoff, connection=conn)
+			e.add_field(name='Top pages', inline=False, value='\n'.join(
+				f'{chr(first_place + i)} {page.title} ({page.count} recent uses)'
+				for i, page in enumerate(top_pages)))
+
+			top_editors = await self.db.top_editors(ctx.guild.id, cutoff=cutoff, connection=conn)
+			e.add_field(name='Top editors', inline=False, value='\n'.join(
+				f'{chr(first_place + i)} <@{editor.id}> ({editor.count} revisions)'
+				for i, editor in enumerate(top_editors)))
+
+		await ctx.send(embed=e)
+
+	async def page_stats(self, ctx, title):
+		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+		e = discord.Embed(title=f'Stats for “{title}”')
+		async with self.bot.pool.acquire() as conn:
+			revisions_count = await self.db.page_revisions_count(ctx.guild.id, title, connection=conn)
+			usage_count = await self.db.page_uses(ctx.guild.id, title, cutoff=cutoff, connection=conn)
+			top_editors = await self.db.top_page_editors(ctx.guild.id, title, connection=conn)
+
+		e.description = f'{revisions_count} all time revisions, {usage_count} recent uses'
+
+		first_place = ord('🥇')
+		e.add_field(name='Top editors', inline=False, value='\n'.join(
+			f'{chr(first_place + i)} <@{editor.id}> authored {editor.rank * 100}% ({editor.count}) revisions recently'
+			for i, editor in enumerate(top_editors)))
+
+		await ctx.send(embed=e)
 
 	@commands.command()
 	async def raw(self, ctx, *, title: WikiPage(Permissions.view)):

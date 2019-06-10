@@ -58,7 +58,7 @@ SELECT * FROM (
 	FROM pages
 	UNION ALL
 	SELECT guild, title
-	FROM aliases ) AS why_do_subqueries_in_FROM_need_an_alias_smh_my_head
+	FROM aliases) AS why_do_subqueries_in_FROM_need_an_alias_smh_my_head
 WHERE guild = $1
 ORDER BY lower(title) ASC
 
@@ -174,7 +174,9 @@ WITH page AS (
 INSERT INTO page_usage_history (page_id)
 VALUES ((SELECT * FROM page))
 
--- :name get_page_uses
+-- STATS
+
+-- :name page_uses
 -- params: guild_id, title, cutoff_date
 WITH page AS (
 	SELECT page_id
@@ -184,3 +186,61 @@ WITH page AS (
 SELECT count(*)
 FROM page_usage_history
 WHERE page_id = (SELECT * FROM page) AND time > $3
+
+-- :name page_revisions_count
+-- params: guild_id, title
+WITH page AS (
+	SELECT page_id
+	FROM aliases RIGHT JOIN pages USING (page_id)
+	WHERE pages.guild = $1 AND
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+SELECT count(*)
+FROM revisions
+WHERE page_id = (SELECT * FROM page)
+
+-- :name page_count
+-- params: guild_id
+SELECT count(*)
+FROM pages
+WHERE guild = $1
+
+-- :name revisions_count
+-- params: guild_id
+SELECT count(*)
+FROM revisions INNER JOIN pages USING (page_id)
+WHERE guild = $1
+
+-- :name total_page_uses
+-- params: guild_id, cutoff_date
+SELECT count(*)
+FROM pages LEFT JOIN page_usage_history USING (page_id)
+WHERE guild = $1 AND time > $2
+
+-- :name top_pages
+-- params: guild_id, cutoff_date
+SELECT title, count(time) AS count
+FROM pages LEFT JOIN page_usage_history USING (page_id)
+WHERE guild = $1 AND time > $2
+GROUP BY page_id
+LIMIT 3
+
+-- :name top_editors
+-- params: guild_id, cutoff_date
+SELECT author AS id, count(revision_id) AS count
+FROM revisions INNER JOIN pages USING (page_id)
+WHERE guild = $1 AND revised > $2
+GROUP BY author
+LIMIT 3
+
+-- :name top_page_editors
+-- params: guild_id, title, cutoff_date
+WITH page_id AS (
+	SELECT page_id
+	FROM pages LEFT JOIN aliases USING (page_id)
+	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+SELECT author AS id, count(*) AS count, count(*)::float8 / sum(count(*)) OVER () AS rank
+FROM revisions
+WHERE page_id = (SELECT * FROM page_id) AND revised > $3
+GROUP BY author
+ORDER BY rank DESC
+LIMIT 3
