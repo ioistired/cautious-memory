@@ -112,9 +112,10 @@ class Wiki(commands.Cog):
 		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
 		e = discord.Embed(title=f'Stats for “{title}”')
 		async with self.bot.pool.acquire() as conn:
+			# top editors is first so that it can detect PageNotFound
+			top_editors = await self.db.top_page_editors(ctx.guild.id, title, connection=conn)
 			revisions_count = await self.db.page_revisions_count(ctx.guild.id, title, connection=conn)
 			usage_count = await self.db.page_uses(ctx.guild.id, title, cutoff=cutoff, connection=conn)
-			top_editors = await self.db.top_page_editors(ctx.guild.id, title, connection=conn)
 
 		e.description = f'{revisions_count} all time revisions, {usage_count} recent uses'
 

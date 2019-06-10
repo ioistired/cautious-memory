@@ -110,9 +110,12 @@ class WikiDatabase(commands.Cog):
 
 	async def top_page_editors(self, guild_id, title, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return list(map(attrdict, await (connection or self.bot.pool).fetch(
+		editors = list(map(attrdict, await (connection or self.bot.pool).fetch(
 			self.queries.top_page_editors,
 			guild_id, title, cutoff)))
+		if not editors:
+			raise errors.PageNotFoundError(title)
+		return editors
 
 	async def total_page_uses(self, guild_id, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
