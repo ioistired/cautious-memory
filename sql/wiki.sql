@@ -222,6 +222,7 @@ SELECT title, count(time) AS count
 FROM pages LEFT JOIN page_usage_history USING (page_id)
 WHERE guild = $1 AND time > $2
 GROUP BY page_id
+ORDER BY count DESC
 LIMIT 3
 
 -- :name top_editors
@@ -230,6 +231,7 @@ SELECT author AS id, count(revision_id) AS count
 FROM revisions INNER JOIN pages USING (page_id)
 WHERE guild = $1 AND revised > $2
 GROUP BY author
+ORDER BY count DESC
 LIMIT 3
 
 -- :name top_page_editors
