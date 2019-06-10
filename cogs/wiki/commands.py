@@ -64,8 +64,7 @@ class Wiki(commands.Cog):
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
-	@has_wiki_permissions(Permissions.view)
-	async def info(self, ctx, *, title: commands.clean_content):
+	async def info(self, ctx, *, title: WikiPage(Permissions.view)):
 		"""Tells you whether a page is an alias."""
 		page = await self.db.resolve_page(ctx.guild.id, title)
 

@@ -69,16 +69,19 @@ class PermissionsDatabase(commands.Cog):
 
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
-		perms = await self.bot.pool.fetchval(
-			self.queries.permissions_for,
-			member.guild.id, title, roles, Permissions.default.value)
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page_id = await conn.fetchval(self.queries.get_page_id, member.guild.id, title)
+			if page_id is None:
+				raise errors.PageNotFoundError(title)
+			perms = await self.bot.pool.fetchval(
+				self.queries.permissions_for,
+				page_id, roles, Permissions.default.value)
+
 		return Permissions(perms)
 
 	async def member_permissions(self, member: discord.Member):
 		roles = [role.id for role in member.roles]
-		perms = await self.bot.pool.fetchval(
-			self.queries.member_permissions,
-			member.guild.id, roles, Permissions.default.value)
+		perms = await self.bot.pool.fetchval(self.queries.member_permissions, roles, Permissions.default.value)
 		return Permissions(perms)
 
 	async def highest_manage_permissions_role(self, member: discord.Member) -> typing.Optional[discord.Role]:
@@ -124,12 +127,14 @@ class PermissionsDatabase(commands.Cog):
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
-		# TODO figure out a way to raise an error on page not found instead of returning {}
-		return {
-			entity: (Permissions(allow), Permissions(deny))
-			for entity, allow, deny in await self.bot.pool.fetch(
-				self.queries.get_page_overwrites,
-				guild_id, title)}
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page_id = await conn.fetchval(self.queries.get_page_id, guild_id, title)
+			if page_id is None:
+				raise errors.PageNotFoundError(title)
+
+			return {
+				entity: (Permissions(allow), Permissions(deny))
+				for entity, allow, deny in await conn.fetch(self.queries.get_page_overwrites, page_id)}
 
 	async def set_page_overwrites(
 		self,

@@ -113,7 +113,7 @@ VALUES ($1, $2)
 RETURNING page_id
 
 -- :name get_page_id
--- params: title
+-- params: guild_id, title
 SELECT page_id
 FROM pages
 WHERE

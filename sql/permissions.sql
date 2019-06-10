@@ -1,30 +1,29 @@
 -- :name permissions_for
--- params: guild_id, title, member_id, role_ids, Permissions.default.value
--- role_ids must include member_id for member specific page overwrites
-WITH
-	page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2)),
-	everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = $1)
+-- params: page_id, member_id, role_ids, Permissions.default.value
+-- role_ids must include member_id for member specific page overwrites, and the first element must be the guild ID
+WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($2::BIGINT[])[1])
 SELECT
 	(
 		coalesce(bit_or(permissions), 0)
 		| coalesce(bit_or(allow), 0)
-		| coalesce((SELECT * FROM everyone_perms), $4))
+		| coalesce((SELECT * FROM everyone_perms), $3))
 	& ~coalesce(bit_or(deny), 0)
 FROM
 	role_permissions
 	FULL OUTER JOIN page_permissions USING (entity)
 WHERE
-	entity = ANY ($3)  -- role permissions / role overwrites
+	entity = ANY ($2)  -- role permissions / role overwrites
 	AND (
-		page_id = (SELECT * FROM page_id)
+		page_id = $1
 		OR page_id IS NULL)  -- in case there's no page permissions for some role
 
 -- :name member_permissions
--- params: guild_id, role_ids, Permissions.default.value
-WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = $1)
-SELECT coalesce(bit_or(permissions), 0) | coalesce((SELECT * FROM everyone_perms),  $3)
+-- params: role_ids, Permissions.default.value
+-- role_ids must have the guild ID as the first element
+WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($1::BIGINT[])[1])
+SELECT coalesce(bit_or(permissions), 0) | coalesce((SELECT * FROM everyone_perms),  $2)
 FROM role_permissions
-WHERE entity = ANY ($2)
+WHERE entity = ANY ($1)
 
 -- :name manage_permissions_roles
 -- params: role_ids, Permissions.manage_permissions.value
@@ -68,11 +67,10 @@ WHERE entity = $1
 RETURNING permissions
 
 -- :name get_page_overwrites
--- params: guild_id, title
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+-- params: page_id
 SELECT entity, allow, deny
 FROM page_permissions
-WHERE page_id = (SELECT * FROM page_id)
+WHERE page_id = $1
 
 -- :name set_page_overwrites
 -- params: guild_id, title, entity_id, allowed_perms, denied_perms
@@ -109,3 +107,9 @@ UPDATE page_permissions SET
 	deny = deny & ~$4::INTEGER
 WHERE page_id = (SELECT * FROM page_id) AND entity = $3
 RETURNING allow, deny
+
+-- :name get_page_id
+-- params: guild_id, title
+SELECT page_id
+FROM aliases RIGHT JOIN pages USING (page_id)
+WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
