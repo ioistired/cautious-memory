@@ -166,7 +166,7 @@ class Wiki(commands.Cog):
 			await ctx.send(f'No pages have been created or revised within the past {delta}.')
 			return
 
-		await Pages(ctx, entries=entries).begin()
+		await Pages(ctx, entries=entries, numbered=False).begin()
 
 	@commands.command()
 	@has_wiki_permissions(Permissions.view)
