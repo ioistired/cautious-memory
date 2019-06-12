@@ -327,7 +327,7 @@ class Wiki(commands.Cog):
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		title = (
 			f'“{revision.current_title}”'
-			if revision.title == revision.current_title and revision.title is not None
+			if revision.title == revision.current_title or revision.title is None
 			else f'“{revision.current_title}” (then called “{revision.title}”)')
 		return f'#{revision.revision_id}) {title} was revised by {author_at}'
 
