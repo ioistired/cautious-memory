@@ -49,7 +49,7 @@ def load_sql(fp):
 	current_tag = ''
 
 	for line in fp:
-		match = re.match('\s*--\s*:name\s*(\S+).*?$', line)
+		match = re.match(r'\s*--\s*:name\s*(\S+).*?$', line)
 		if match:
 			current_tag = match[1]
 			continue
