@@ -175,7 +175,7 @@ class Wiki(commands.Cog):
 		paginator = Pages(ctx, entries=[p.title async for p in self.db.search_pages(ctx.guild.id, query)])
 
 		if not paginator.entries:
-			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')
+			await ctx.send(f'No pages matched your search.')
 			return
 
 		await paginator.begin()
