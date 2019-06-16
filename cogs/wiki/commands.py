@@ -317,12 +317,12 @@ class Wiki(commands.Cog):
 			await ctx.send('You can only compare revisions of the same page.')
 			return
 
-		diff = difflib.unified_diff(
+		diff = list(difflib.unified_diff(
 			old.content.splitlines(),
 			new.content.splitlines(),
 			fromfile=self.revision_summary(ctx.guild, old),
 			tofile=self.revision_summary(ctx.guild, new),
-			lineterm='')
+			lineterm=''))
 
 		if not diff:
 			await ctx.send('These revisions appear to be identical.')
