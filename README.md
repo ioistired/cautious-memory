@@ -16,7 +16,7 @@ $ psql cm -f sql/functions.sql
 ```
 
 Copy config.example.json5 to config.json5 and edit appropriately. Make a virtualenv for the bot,
-and `pip install -r requirements.txt`. Then just `python bot.py`.
+and `pip install -e .`. Then just `python -m cautious_memory`.
 
 ### Migrations
 
