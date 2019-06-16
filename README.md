@@ -11,8 +11,8 @@ create database cm;
 \c cm
 create extension pg_trgm;
 ^D
-$ psql cm -f sql/schema.sql
-$ psql cm -f sql/functions.sql
+$ psql cm -f cautious_memory/sql/schema.sql
+$ psql cm -f cautious_memory/sql/functions.sql
 ```
 
 Copy config.example.json5 to config.json5 and edit appropriately. Make a virtualenv for the bot,
