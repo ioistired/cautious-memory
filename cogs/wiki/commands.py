@@ -345,7 +345,7 @@ class Wiki(commands.Cog):
 	def renamed_revision_summary(cls, guild, revision, *, old_title):
 		author = cls.format_member(guild, revision.author)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
-		return f'{old_title} was renamed to {revision.title} by {author_at} with no changes'
+		return f'“{old_title}” was renamed to “{revision.title}” by {author_at} with no changes'
 
 	@classmethod
 	def format_member(cls, guild, member_id):
