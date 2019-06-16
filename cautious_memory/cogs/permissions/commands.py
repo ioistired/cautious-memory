@@ -21,8 +21,8 @@ from discord.ext import commands
 import inflect
 inflect = inflect.engine()
 
-from cogs.permissions.db import Permissions
-from utils.errors import MissingPermissionsError
+from .db import Permissions
+from ...utils.errors import MissingPermissionsError
 
 class UserEditableRole(commands.Converter):
 	@classmethod

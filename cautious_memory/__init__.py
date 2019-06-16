@@ -34,7 +34,7 @@ except ImportError:
 else:
 	asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-import utils
+from . import utils
 
 BASE_DIR = os.path.dirname(__file__)
 SQL_DIR = os.path.join(BASE_DIR, 'sql')
@@ -184,11 +184,11 @@ class CautiousMemory(commands.AutoShardedBot):
 
 	def _load_extensions(self):
 		for extension in (
-			'cogs.permissions.db',
-			'cogs.permissions.commands',
-			'cogs.wiki.db',
-			'cogs.wiki.commands',
-			'cogs.meta',
+			'cautious_memory.cogs.permissions.db',
+			'cautious_memory.cogs.permissions.commands',
+			'cautious_memory.cogs.wiki.db',
+			'cautious_memory.cogs.wiki.commands',
+			'cautious_memory.cogs.meta',
 			'jishaku',
 			'ben_cogs.misc',
 			'ben_cogs.debug',
@@ -201,9 +201,3 @@ class CautiousMemory(commands.AutoShardedBot):
 class CustomContext(commands.Context):
 	async def is_privileged(self, member):
 		return member.guild_permissions.administrator or await self.bot.is_owner(member)
-
-if __name__ == '__main__':
-	with open(os.path.join(BASE_DIR, 'config.json5')) as f:
-		config = json5.load(f)
-
-	CautiousMemory(config=config).run()

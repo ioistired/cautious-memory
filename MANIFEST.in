@@ -1,0 +1,4 @@
+include cautious_memory/sql/wiki.sql
+include cautious_memory/sql/permissions.sql
+include cautious_memory/sql/schema.sql
+include cautious_memory/sql/functions.sql

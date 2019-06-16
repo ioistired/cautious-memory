@@ -23,8 +23,8 @@ from discord.ext import commands
 import inflect
 inflect = inflect.engine()
 
-from bot import SQL_DIR
-from utils import errors, load_sql
+from ... import SQL_DIR
+from ...utils import errors, load_sql
 
 class Permissions(enum.Flag):
 	# this class is the single source of truth for the permissions values

@@ -22,10 +22,10 @@ from ben_cogs.misc import natural_time
 import discord
 from discord.ext import commands
 
-from cogs.permissions.db import Permissions
-import utils
-from utils import errors
-from utils.paginator import Pages, TextPages
+from ..permissions.db import Permissions
+from ... import utils
+from ...utils import errors
+from ...utils.paginator import Pages, TextPages
 
 class WikiPage(commands.Converter):
 	def __init__(self, required_perms: Permissions):

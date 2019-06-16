@@ -23,8 +23,8 @@ import asyncpg
 import discord
 from discord.ext import commands
 
-from bot import SQL_DIR
-from utils import attrdict, errors, load_sql
+from ... import SQL_DIR
+from ...utils import attrdict, errors, load_sql
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
