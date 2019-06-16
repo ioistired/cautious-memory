@@ -1,5 +1,0 @@
-asyncpg
-ben_cogs[sql]>=0.10.0,<1.0.0
-discord.py>=1.0.1,<2.0.0
-jishaku
-json5

@@ -19,5 +19,6 @@ setuptools.setup(
 		'ben_cogs[sql]>=0.11.0,<1.0.0',
 		'discord.py>=1.2.2,<2.0.0',
 		'jishaku>=1.14.0',
+		'json5',
 	],
 )
