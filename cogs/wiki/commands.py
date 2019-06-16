@@ -96,14 +96,24 @@ class Wiki(commands.Cog):
 			first_place = ord('🥇')
 
 			top_pages = await self.db.top_pages(ctx.guild.id, cutoff=cutoff, connection=conn)
-			e.add_field(name='Top pages', inline=False, value='\n'.join(
-				f'{chr(first_place + i)} {page.title} ({page.count} recent uses)'
-				for i, page in enumerate(top_pages)))
+			if top_pages:
+				value = '\n'.join(
+					f'{chr(first_place + i)} {page.title} ({page.count} recent uses)'
+					for i, page in enumerate(top_pages))
+			else:
+				value = 'No recent page uses.'
+
+			e.add_field(name='Top pages', inline=False, value=value)
 
 			top_editors = await self.db.top_editors(ctx.guild.id, cutoff=cutoff, connection=conn)
-			e.add_field(name='Top editors', inline=False, value='\n'.join(
-				f'{chr(first_place + i)} <@{editor.id}> ({editor.count} revisions)'
-				for i, editor in enumerate(top_editors)))
+			if top_editors:
+				value = '\n'.join(
+					f'{chr(first_place + i)} <@{editor.id}> ({editor.count} revisions)'
+					for i, editor in enumerate(top_editors))
+			else:
+				value = 'No recent page edits.'
+
+			e.add_field(name='Top editors', inline=False, value=value)
 
 		await ctx.send(embed=e)
 
