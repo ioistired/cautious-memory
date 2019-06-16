@@ -99,7 +99,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	async def deny_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
 		"""Deny wiki permissions to a Discord role.
 
-		To grant permissions to everyone, just specify "everyone" as the role.
+		To deny permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_perms = await self.db.deny_role_permissions(role, perms)
@@ -134,7 +134,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""Deny permissions to a certain role or member on a certain page.
 
 		Their permissions on this page will override any permissions given to them by their role.
-		To grant permissions to everyone, just specify "everyone" as the role.
+		To deny permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
@@ -152,7 +152,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		""""Uncheck" (neither allow nor deny) certain permissions for a role or member on a page.
 
 		This is equivalent to the "grey check mark" in Discord.
-		To grant permissions to everyone, just specify "everyone" as the role.
+		To unset page permissions for everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
