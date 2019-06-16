@@ -146,6 +146,17 @@ class Wiki(commands.Cog):
 			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
 		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
 
+	@commands.command()
+	async def altraw(self, ctx, *, title: WikiPage(Permissions.view)):
+		"""Shows the raw contents of a page in a code block.
+
+		This is for some tricky markdown that is hard to show outside of a code block, like ">" at the end of a link.
+		"""
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
+			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
+		await ctx.send(utils.code_block(utils.escape_code_blocks(page.content)))
+
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
 		"""Shows you a list of all the pages on this server."""
