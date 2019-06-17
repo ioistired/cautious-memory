@@ -162,7 +162,7 @@ class WikiDatabase(commands.Cog):
 			await self.check_permissions(member, Permissions.view, target_title)
 
 			try:
-				await connection.get().execute(self.queries.alias_page, guild_id, alias_title, target_title)
+				await connection.get().execute(self.queries.alias_page, member.guild.id, alias_title, target_title)
 			except asyncpg.NotNullViolationError:
 				# the CTE returned no rows
 				raise errors.PageNotFoundError(target_title)
@@ -186,30 +186,31 @@ class WikiDatabase(commands.Cog):
 				raise errors.PageContentTooLongError(title, len(new_content), limit)
 
 	@optional_connection
-	async def rename_page(self, guild_id, title, new_title, *, author_id):
+	async def rename_page(self, member, title, new_title):
 		async with connection.get().transaction():
 			try:
-				page_id = await connection.get().fetchval(self.queries.rename_page, guild_id, title, new_title)
+				page_id = await connection.get().fetchval(self.queries.rename_page, member.guild.id, title, new_title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await connection.get().execute(self.queries.log_page_rename, page_id, author_id, new_title)
+			await connection.get().execute(self.queries.log_page_rename, page_id, member.id, new_title)
 
 	@optional_connection
-	async def delete_page(self, guild_id, title) -> bool:
+	async def delete_page(self, member, title) -> bool:
 		"""delete a page or alias
 
 		return whether an alias was deleted
 		"""
 		async with connection.get().transaction():
-			command_tag = await connection.get().execute(self.queries.delete_alias, guild_id, title)
+			await self.check_permissions(member, Permissions.delete, title)
+			command_tag = await connection.get().execute(self.queries.delete_alias, member.guild.id, title)
 			if command_tag.split()[-1] != '0':
 				return True
 
-			command_tag = await connection.get().execute(self.queries.delete_page, guild_id, title)
+			command_tag = await connection.get().execute(self.queries.delete_page, member.guild.id, title)
 			if command_tag.split()[-1] != '0':
 				return False
 
