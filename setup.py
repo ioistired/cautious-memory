@@ -9,6 +9,8 @@ setuptools.setup(
 	packages=[
 		'cautious_memory',
 		'cautious_memory.cogs',
+		'cautious_memory.cogs.permissions',
+		'cautious_memory.cogs.wiki',
 		'cautious_memory.utils',
 	],
 
