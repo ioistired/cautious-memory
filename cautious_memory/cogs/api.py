@@ -147,7 +147,7 @@ class API(commands.Cog):
 			secrets.compare_digest(token, token)
 			return False
 
-		db_token = self.encode_token(user_id, db_secret)
+		db_token = self.encode_token(user_id, app_id, db_secret)
 		return (user_id, app_id) if secrets.compare_digest(token, db_token) else (None, None)
 
 	async def delete_user_account(self, user_id):
