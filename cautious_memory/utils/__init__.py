@@ -16,7 +16,10 @@
 import math
 import re
 
+import aiocontextvars
 import discord
+
+connection = aiocontextvars.ContextVar('connection')
 
 attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
@@ -68,3 +71,17 @@ def bytes_to_int(x):
 def int_to_bytes(n):
 	num_bytes = int(math.ceil(n.bit_length() / 8))
 	return n.to_bytes(num_bytes, byteorder='big')
+
+def optional_connection(func):
+	"""Decorator that acquires a connection for the decorated function if the contextvar is not set."""
+	async def inner(self, *args, **kwargs):
+		try:
+			connection.get()
+		except LookupError:
+			async with self.bot.pool.acquire() as conn:
+				connection.set(conn)
+				return await func(self, *args, **kwargs)
+		else:
+			return await func(self, *args, **kwargs)
+
+	return inner

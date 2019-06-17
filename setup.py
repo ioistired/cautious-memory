@@ -15,6 +15,7 @@ setuptools.setup(
 	include_package_data=True,
 
 	install_requires=[
+		'aiocontextvars',
 		'asyncpg',
 		'ben_cogs[sql]>=0.11.0,<1.0.0',
 		'discord.py>=1.2.2,<2.0.0',

@@ -24,15 +24,8 @@ from discord.ext import commands
 
 from ..permissions.db import Permissions
 from ... import utils
-from ...utils import errors
+from ...utils import connection, errors
 from ...utils.paginator import Pages, TextPages
-
-def has_wiki_permissions(x=None):
-	def inner(func):
-		return func
-	return inner
-
-def WikiPage(x=None): pass
 
 class Wiki(commands.Cog):
 	def __init__(self, bot):
@@ -47,8 +40,9 @@ class Wiki(commands.Cog):
 	async def show(self, ctx, *, title: commands.clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page = await self.db.get_page(ctx.author, title, connection=conn)
-			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
+			connection.set(conn)
+			page = await self.db.get_page(ctx.author, title)
+			await self.db.log_page_use(ctx.guild.id, title)
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
@@ -63,7 +57,7 @@ class Wiki(commands.Cog):
 				f'“{page.target}” is not an alias. Use the {ctx.prefix}history command for more information on it.')
 
 	@commands.command()
-	async def stats(self, ctx, *, title: WikiPage(Permissions.view) = None):
+	async def stats(self, ctx, *, title: commands.clean_content = None):
 		"""Shows server-wide statistics on page usage and revision."""
 		if title is None:
 			await self.guild_stats(ctx)
@@ -76,14 +70,15 @@ class Wiki(commands.Cog):
 		# no transaction because maybe doing a lot of COUNTing would require table wide locks
 		# to maintain consistency (dunno, just a hunch)
 		async with self.bot.pool.acquire() as conn:
-			page_count = await self.db.page_count(ctx.guild.id, connection=conn)
-			revisions_count = await self.db.revisions_count(ctx.guild.id, connection=conn)
-			total_page_uses = await self.db.total_page_uses(ctx.guild.id, cutoff=cutoff, connection=conn)
+			connection.set(conn)
+			page_count = await self.db.page_count(ctx.guild.id)
+			revisions_count = await self.db.revisions_count(ctx.guild.id)
+			total_page_uses = await self.db.total_page_uses(ctx.guild.id, cutoff=cutoff)
 			e.description = f'{page_count} pages, {revisions_count} revisions, {total_page_uses} recent page uses'
 
 			first_place = ord('🥇')
 
-			top_pages = await self.db.top_pages(ctx.guild.id, cutoff=cutoff, connection=conn)
+			top_pages = await self.db.top_pages(ctx.guild.id, cutoff=cutoff)
 			if top_pages:
 				value = '\n'.join(
 					f'{chr(first_place + i)} {page.title} ({page.count} recent uses)'
@@ -93,7 +88,7 @@ class Wiki(commands.Cog):
 
 			e.add_field(name='Top pages', inline=False, value=value)
 
-			top_editors = await self.db.top_editors(ctx.guild.id, cutoff=cutoff, connection=conn)
+			top_editors = await self.db.top_editors(ctx.guild.id, cutoff=cutoff)
 			if top_editors:
 				value = '\n'.join(
 					f'{chr(first_place + i)} <@{editor.id}> ({editor.count} revisions)'
@@ -109,10 +104,12 @@ class Wiki(commands.Cog):
 		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
 		e = discord.Embed(title=f'Stats for “{title}”')
 		async with self.bot.pool.acquire() as conn:
+			connection.set(conn)
+			await self.db.check_permissions(ctx.author, Permissions.view, title)
 			# top editors is first so that it can detect PageNotFound
-			top_editors = await self.db.top_page_editors(ctx.guild.id, title, connection=conn)
-			revisions_count = await self.db.page_revisions_count(ctx.guild.id, title, connection=conn)
-			usage_count = await self.db.page_uses(ctx.guild.id, title, cutoff=cutoff, connection=conn)
+			top_editors = await self.db.top_page_editors(ctx.guild.id, title)
+			revisions_count = await self.db.page_revisions_count(ctx.guild.id, title)
+			usage_count = await self.db.page_uses(ctx.guild.id, title, cutoff=cutoff)
 
 		e.description = f'{revisions_count} all time revisions, {usage_count} recent uses'
 
@@ -124,25 +121,27 @@ class Wiki(commands.Cog):
 		await ctx.send(embed=e)
 
 	@commands.command()
-	async def raw(self, ctx, *, title: WikiPage(Permissions.view)):
+	async def raw(self, ctx, *, title: commands.clean_content):
 		"""Shows the raw contents of a page.
 
 		This is with markdown escaped, which is useful for editing.
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
-			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
+			connection.set(conn)
+			page = await self.db.get_page(ctx.author, title)
+			await self.db.log_page_use(ctx.guild.id, title)
 		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
 
 	@commands.command()
-	async def altraw(self, ctx, *, title: WikiPage(Permissions.view)):
+	async def altraw(self, ctx, *, title: commands.clean_content):
 		"""Shows the raw contents of a page in a code block.
 
 		This is for some tricky markdown that is hard to show outside of a code block, like ">" at the end of a link.
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
-			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
+			connection.set(conn)
+			page = await self.db.get_page(ctx.guild.id, title)
+			await self.db.log_page_use(ctx.guild.id, title)
 		await ctx.send(utils.code_block(utils.escape_code_blocks(page.content)))
 
 	@commands.command(aliases=['pages'])
@@ -157,7 +156,6 @@ class Wiki(commands.Cog):
 		await paginator.begin()
 
 	@commands.command(name='recent-revisions', aliases=['recent', 'recent-changes'])
-	@has_wiki_permissions(Permissions.view)
 	async def recent_revisions(self, ctx):
 		"""Shows you a list of the most recent revisions to pages on this server.
 
@@ -168,7 +166,7 @@ class Wiki(commands.Cog):
 
 		entries = [
 			self.revision_summary(ctx.guild, revision)
-			async for revision in self.db.get_recent_revisions(ctx.guild.id, cutoff)]
+			async for revision in self.db.get_recent_revisions(ctx.author, cutoff)]
 
 		if not entries:
 			delta = natural_time(cutoff_delta.total_seconds())
@@ -178,10 +176,9 @@ class Wiki(commands.Cog):
 		await Pages(ctx, entries=entries, numbered=False).begin()
 
 	@commands.command()
-	@has_wiki_permissions(Permissions.view)
 	async def search(self, ctx, *, query):
 		"""Searches this server's wiki pages for titles similar to your query."""
-		paginator = Pages(ctx, entries=[p.title async for p in self.db.search_pages(ctx.guild.id, query)])
+		paginator = Pages(ctx, entries=[p.title async for p in self.db.search_pages(ctx.author, query)])
 
 		if not paginator.entries:
 			await ctx.send(f'No pages matched your search.')
@@ -190,40 +187,38 @@ class Wiki(commands.Cog):
 		await paginator.begin()
 
 	@commands.command(aliases=['add'])
-	@has_wiki_permissions(Permissions.create)
 	async def create(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
 		"""Adds a new page to the wiki.
 		If the title has spaces, you must surround it in quotes.
 		"""
 		# hopefully prevent someone creating a wiki page like " a" that can't be retrieved
 		title = title.strip()
-		await self.db.create_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
+		await self.db.create_page(ctx.author, title, content)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revise'])
-	async def edit(self, ctx, title: WikiPage(Permissions.edit), *, content: commands.clean_content):
+	async def edit(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
 		"""Edits an existing wiki page.
 		If the title has spaces, you must surround it in quotes.
 		"""
-		await self.db.revise_page(title, content, guild_id=ctx.guild.id, author_id=ctx.author.id)
+		await self.db.revise_page(ctx.author, title, content)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['remove', 'rm', 'del'])
-	async def delete(self, ctx, *, title: WikiPage(Permissions.delete)):
+	async def delete(self, ctx, *, title: commands.clean_content):
 		"""Deletes a wiki page. This deletes all of its revisions and aliases, as well.
 
 		You must have the "delete pages" permission.
 		"""
-		was_alias = await self.db.delete_page(ctx.guild.id, title)
+		was_alias = await self.db.delete_page(ctx.author, title)
 		if was_alias:
 			await ctx.send(f'{self.bot.config["success_emoji"]} Page alias successfully deleted.')
 		else:
 			await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions and aliases successfully deleted.')
 
 	@commands.command(ignore_extra=False)
-	@has_wiki_permissions(Permissions.create)
-	async def alias(self, ctx, new_name: commands.clean_content, old_name: WikiPage(Permissions.view)):
-		# this docstring used is under the MIT License
+	async def alias(self, ctx, new_name: commands.clean_content, old_name: commands.clean_content):
+		# this docstring is used under the MIT License
 		# Copyright © 2015 Rapptz
 		# https://github.com/Rapptz/RoboDanny/blob/27304f6/cogs/tags.py#L305–L313
 		"""Creates an alias for a pre-existing page.
@@ -234,12 +229,12 @@ class Wiki(commands.Cog):
 		You must have the "create pages" permission, and must be able to view the page you are trying to alias.
 		Any page name that has spaces must be surrounded in quotes.
 		"""
-		await self.db.alias_page(ctx.guild.id, new_name, old_name)
+		new_name = new_name.strip()
+		await self.db.alias_page(ctx.author, new_name, old_name)
 		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
 
 	@commands.command(ignore_extra=False)
-	@has_wiki_permissions(Permissions.create)
-	async def ln(self, ctx, target: WikiPage(Permissions.view), link_name: commands.clean_content):
+	async def ln(self, ctx, target: commands.clean_content, link_name: commands.clean_content):
 		"""Creates an alias for a pre-existing page.
 
 		This command is identical to the alias command except for the argument order.
@@ -247,43 +242,47 @@ class Wiki(commands.Cog):
 		await ctx.invoke(self.alias, link_name, target)
 
 	@commands.command(ignore_extra=False)  # in case someone tries to not quote the new_title
-	async def rename(self, ctx, title: WikiPage(Permissions.rename), new_title: commands.clean_content):
+	async def rename(self, ctx, title: commands.clean_content, new_title: commands.clean_content):
 		"""Renames a wiki page.
 
 		If the old title or the new title have spaces in them, you must surround them in quotes.
 		"""
-		await self.db.rename_page(ctx.guild.id, title, new_title, author_id=ctx.author.id)
+		new_title = new_title.strip()
+		await self.db.rename_page(ctx.author, title, new_title)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
-	async def history(self, ctx, *, title: WikiPage(Permissions.view)):
+	async def history(self, ctx, *, title: commands.clean_content):
 		"""Shows the revisions of a particular page"""
 
 		entries = [
 			self.revision_summary(ctx.guild, revision)
-			async for revision in self.db.get_page_revisions(ctx.guild.id, title)]
+			async for revision in self.db.get_page_revisions(ctx.author, title)]
 		if not entries:
 			raise errors.PageNotFoundError(title)
 
 		await Pages(ctx, entries=entries, numbered=False).begin()
 
 	@commands.command()
-	async def revert(self, ctx, title: WikiPage(Permissions.edit), revision: int):
+	async def revert(self, ctx, title: commands.clean_content, revision: int):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
 		If the title has spaces, you must surround it in quotes.
 		"""
-		try:
-			revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
-		except ValueError:
-			await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
-			return
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			connection.set(conn)
+			try:
+				revision, = await self.db.get_individual_revisions(ctx.author, [revision])
+			except ValueError:
+				await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
+				return
 
-		if revision.title.lower() != title.lower():
-			await ctx.send('Error: This revision is for another page.')
-			return
+			if revision.title.lower() != title.lower():
+				await ctx.send('Error: This revision is for another page.')
+				return
 
-		await self.db.revise_page(title, revision.content, guild_id=ctx.guild.id, author_id=ctx.author.id)
+			await self.db.revise_page(ctx.author, title, revision.content)
+
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
@@ -298,19 +297,18 @@ class Wiki(commands.Cog):
 			await ctx.send('Provided revision IDs must be distinct.')
 			return
 
-		try:
-			old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
-		except ValueError:
-			await ctx.send(
-				'One or more provided revision IDs were invalid. '
-				f'Use the {ctx.prefix}history command to get valid revision IDs.')
-			return
+		async with self.bot.pool.acquire() as conn:
+			try:
+				old, new = await self.db.get_individual_revisions(ctx.author, (revision_id_1, revision_id_2))
+			except ValueError:
+				await ctx.send(
+					'One or more provided revision IDs were invalid. '
+					f'Use the {ctx.prefix}history command to get valid revision IDs.')
+				return
+			await self.db.check_permissions(ctx.author, Permissions.edit, new.title)
 
 		if new.content is None or old.content is None:
 			return await ctx.send(self.renamed_revision_summary(ctx.guild, new, old_title=old.title))
-
-		if Permissions.edit not in await self.permissions_db.permissions_for(ctx.author, new.title):
-			raise errors.MissingPermissionsError(Permissions.edit)
 
 		if old.page_id != new.page_id:
 			await ctx.send('You can only compare revisions of the same page.')

@@ -25,22 +25,7 @@ from discord.ext import commands
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import attrdict, errors, load_sql
-
-def optional_connection(func):
-	"""Decorator that exposes an optional "connection" keyword argument which is required for the decorated function.
-
-	If the connection kwarg is provided, that is used as the connection for the decorated function.
-	Otherwise, a new connection is acquired and passed.
-	"""
-	async def inner(self, *args, connection=None, **kwargs):
-		async def inner(conn):
-			return await func(self, *args, connection=conn, **kwargs)
-		if connection is None:
-			async with self.bot.pool.acquire() as conn:
-				return await inner(conn)
-		return await inner(connection)
-	return inner
+from ...utils import attrdict, connection, errors, load_sql, optional_connection
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
@@ -50,56 +35,70 @@ class WikiDatabase(commands.Cog):
 			self.queries = load_sql(f)
 
 	@optional_connection
-	async def get_page(self, member, title, *, connection):
+	async def get_page(self, member, title):
 		await self.check_permissions(member, Permissions.view, title)
-		row = await connection.fetchrow(self.queries.get_page, member.guild.id, title)
+		row = await connection.get().fetchrow(self.queries.get_page, member.guild.id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
 		return attrdict(row)
 
-	async def get_page_revisions(self, guild_id, title):
-		async for row in self.cursor(self.queries.get_page_revisions, guild_id, title):
+	@optional_connection
+	async def get_page_revisions(self, member, title):
+		await self.check_permissions(member, Permissions.view, title)
+		async for row in self.cursor(self.queries.get_page_revisions, member.guild.id, title):
 			yield row
 
-	async def get_all_pages(self, guild_id):
+	async def get_all_pages(self, member):
 		"""return an async iterator over all pages for the given guild"""
-		async for row in self.cursor(self.queries.get_all_pages, guild_id):
-			yield row
-
-	async def get_recent_revisions(self, guild_id, cutoff: datetime.datetime):
-		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
-		async for row in self.cursor(self.queries.get_recent_revisions, guild_id, cutoff):
+		await self.check_permissions(member, Permissions.view)
+		async for row in self.cursor(self.queries.get_all_pages, member.guild.id):
 			yield row
 
 	@optional_connection
-	async def resolve_page(self, guild_id, title, *, connection):
-		row = await connection.fetchrow(self.queries.get_alias, guild_id, title)
+	async def get_recent_revisions(self, member, cutoff: datetime.datetime):
+		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
+		await self.check_permissions(member, Permissions.view)
+		async for row in self.cursor(self.queries.get_recent_revisions, member.guild.id, cutoff):
+			yield row
+
+	@optional_connection
+	async def resolve_page(self, member, title):
+		# XXX if a user is denied permissions for a page, that applies to its aliases too.
+		# So if a user is denied view permissions for a single page, and they request info on an alias to that page,
+		# the fact that they were denied permission to view that alias would leak information about what
+		# page it is an alias to. Consider allowing anyone to resolve an alias, or only denying those who
+		# were globally denied view permissions.
+		await self.check_permissions(member, Permissions.view, title)
+		row = await connection.get().fetchrow(self.queries.get_alias, member.guild.id, title)
 		if row is not None:
 			return attrdict(row)
 
-		row = await connection.fetchrow(self.queries.get_page_no_alias, guild_id, title)
+		row = await connection.get().fetchrow(self.queries.get_page_no_alias, member.guild.id, title)
 		if row is not None:
 			return attrdict(row)
 
 		raise errors.PageNotFoundError(title)
 
-	async def search_pages(self, guild_id, query):
+	@optional_connection
+	async def search_pages(self, member, query):
 		"""return an async iterator over all pages whose title is similar to query"""
-		async for row in self.cursor(self.queries.search_pages, guild_id, query):
+		await self.check_permissions(member, Permissions.view)
+		async for row in self.cursor(self.queries.search_pages, member.guild.id, query):
 			yield row
 
 	async def cursor(self, query, *args):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			async for row in conn.cursor(query, *args):
+		async with connection.get().transaction():
+			async for row in connection.get().cursor(query, *args):
 				yield attrdict(row)
 
+	@optional_connection
 	async def get_individual_revisions(self, guild_id, revision_ids):
 		"""return a list of page revisions for the given guild.
 		the revisions are sorted by their revision ID.
 		"""
-		results = list(map(attrdict, await self.bot.pool.fetch(
+		results = list(map(attrdict, await connection.get().fetch(
 			self.queries.get_individual_revisions,
 			guild_id, revision_ids)))
 
@@ -144,65 +143,77 @@ class WikiDatabase(commands.Cog):
 			self.queries.top_editors,
 			guild_id, cutoff)))
 
-	async def create_page(self, title, content, *, guild_id, author_id):
-		async with self.bot.pool.acquire() as conn, conn.transaction():
+	async def create_page(self, member, title, content):
+		async with connection.get().transaction():
+			await self.check_permissions(member, Permissions.create)
 			try:
-				page_id = await conn.fetchval(self.queries.create_page, guild_id, title)
+				page_id = await connection.get().fetchval(self.queries.create_page, member.guild.id, title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
-			await conn.execute(self.queries.create_first_revision, page_id, author_id, content, title)
+			await connection.get().execute(self.queries.create_first_revision, page_id, member.id, content, title)
 
-	async def alias_page(self, guild_id, alias_title, target_title):
-		try:
-			await self.bot.pool.execute(self.queries.alias_page, guild_id, alias_title, target_title)
-		except asyncpg.NotNullViolationError:
-			# the CTE returned no rows
-			raise errors.PageNotFoundError(target_title)
-		except asyncpg.UniqueViolationError:
-			raise errors.PageExistsError
+	@optional_connection
+	async def alias_page(self, member, alias_title, target_title):
+		async with connection.get().transaction():
+			await self.check_permissions(member, Permissions.create)
+			await self.check_permissions(member, Permissions.view, target_title)
 
-	async def revise_page(self, title, new_content, *, guild_id, author_id):
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page_id = await conn.fetchval(self.queries.get_page_id, guild_id, title)
+			try:
+				await connection.get().execute(self.queries.alias_page, guild_id, alias_title, target_title)
+			except asyncpg.NotNullViolationError:
+				# the CTE returned no rows
+				raise errors.PageNotFoundError(target_title)
+			except asyncpg.UniqueViolationError:
+				raise errors.PageExistsError
+
+	@optional_connection
+	async def revise_page(self, member, title, new_content):
+		async with connection.get().transaction():
+			await self.check_permissions(member, Permissions.edit, title)
+
+			page_id = await connection.get().fetchval(self.queries.get_page_id, member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
 			try:
-				await conn.execute(self.queries.create_revision, page_id, author_id, new_content)
+				await connection.get().execute(self.queries.create_revision, page_id, member.id, new_content)
 			except asyncpg.StringDataRightTruncationError as exc:
 				# XXX dumb way to do it but it's the only way i've got
 				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
 				raise errors.PageContentTooLongError(title, len(new_content), limit)
 
+	@optional_connection
 	async def rename_page(self, guild_id, title, new_title, *, author_id):
-		async with self.bot.pool.acquire() as conn, conn.transaction():
+		async with connection.get().transaction():
 			try:
-				page_id = await conn.fetchval(self.queries.rename_page, guild_id, title, new_title)
+				page_id = await connection.get().fetchval(self.queries.rename_page, guild_id, title, new_title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await conn.execute(self.queries.log_page_rename, page_id, author_id, new_title)
+			await connection.get().execute(self.queries.log_page_rename, page_id, author_id, new_title)
 
+	@optional_connection
 	async def delete_page(self, guild_id, title) -> bool:
 		"""delete a page or alias
 
 		return whether an alias was deleted
 		"""
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			command_tag = await conn.execute(self.queries.delete_alias, guild_id, title)
+		async with connection.get().transaction():
+			command_tag = await connection.get().execute(self.queries.delete_alias, guild_id, title)
 			if command_tag.split()[-1] != '0':
 				return True
 
-			command_tag = await conn.execute(self.queries.delete_page, guild_id, title)
+			command_tag = await connection.get().execute(self.queries.delete_page, guild_id, title)
 			if command_tag.split()[-1] != '0':
 				return False
 
 		raise errors.PageNotFoundError(title)
 
+	@optional_connection
 	async def check_permissions(self, member, required_permissions, title=None):
 		if title is None:
 			actual_perms = await self.permissions_db.member_permissions(member)
@@ -212,8 +223,9 @@ class WikiDatabase(commands.Cog):
 			return True
 		raise errors.MissingPermissionsError(required_permissions)
 
-	async def log_page_use(self, guild_id, title, *, connection=None):
-		await (connection or self.bot.pool).execute(self.queries.log_page_use, guild_id, title)
+	@optional_connection
+	async def log_page_use(self, guild_id, title):
+		await connection.get().execute(self.queries.log_page_use, guild_id, title)
 
 	## Permissions
 
