@@ -168,7 +168,7 @@ class CautiousMemory(commands.AutoShardedBot):
 	### Init / Shutdown
 
 	async def start(self):
-		await self._init_db()
+		await self.init_db()
 		self._load_extensions()
 
 		await super().start(self.config['tokens'].pop('discord'))
@@ -178,7 +178,7 @@ class CautiousMemory(commands.AutoShardedBot):
 			await self.pool.close()
 		await super().logout()
 
-	async def _init_db(self):
+	async def init_db(self):
 		credentials = self.config['database']
 		self.pool = await asyncpg.create_pool(**credentials)
 

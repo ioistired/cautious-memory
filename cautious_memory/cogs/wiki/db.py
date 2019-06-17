@@ -155,7 +155,12 @@ class WikiDatabase(commands.Cog):
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await conn.execute(self.queries.create_revision, page_id, author_id, new_content)
+			try:
+				await conn.execute(self.queries.create_revision, page_id, author_id, new_content)
+			except asyncpg.StringDataRightTruncationError as exc:
+				# XXX dumb way to do it but it's the only way i've got
+				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
+				raise errors.PageContentTooLongError(title, len(new_content), limit)
 
 	async def rename_page(self, guild_id, title, new_title, *, author_id):
 		async with self.bot.pool.acquire() as conn, conn.transaction():

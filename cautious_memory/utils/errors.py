@@ -37,5 +37,13 @@ class PageNotFoundError(PageError):
 class MissingPermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
 	def __init__(self, permissions_needed):
+		self.permissions_needed = permissions_needed
 		joined = inflect.join([permission.name for permission in permissions_needed])
 		super().__init__(f'Missing permissions to perform this action. You need these permissions: {joined}.')
+
+class PageContentTooLongError(PageError):
+	def __init__(self, title, actual_length, max_length):
+		self.title = title
+		self.actual_length = actual_length
+		self.limit = limit = self.max_length = max_length
+		super().__init__(f'That text is too long. The limit is {limit}.')
