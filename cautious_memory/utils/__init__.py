@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import inspect
 import math
 import re
 
@@ -74,14 +75,31 @@ def int_to_bytes(n):
 
 def optional_connection(func):
 	"""Decorator that acquires a connection for the decorated function if the contextvar is not set."""
-	async def inner(self, *args, **kwargs):
-		try:
-			connection.get()
-		except LookupError:
-			async with self.bot.pool.acquire() as conn:
-				connection.set(conn)
+	# XXX idk how to avoid duplicating this code
+	if inspect.isasyncgenfunction(func):
+		async def inner(self, *args, **kwargs):
+			try:
+				connection.get()
+			except LookupError:
+				async with self.bot.pool.acquire() as conn:
+					connection.set(conn)
+					# XXX this doesn't handle two-way generators
+					# but I don't have any of those anyway.
+					# If I add one, make sure to use async_generator.yield_from_ here
+					async for x in func(self, *args, **kwargs):
+						yield x
+			else:
+				async for x in func(self, *args, **kwargs):
+					yield x
+	else:
+		async def inner(self, *args, **kwargs):
+			try:
+				connection.get()
+			except LookupError:
+				async with self.bot.pool.acquire() as conn:
+					connection.set(conn)
+					return await func(self, *args, **kwargs)
+			else:
 				return await func(self, *args, **kwargs)
-		else:
-			return await func(self, *args, **kwargs)
 
 	return inner

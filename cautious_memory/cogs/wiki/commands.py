@@ -147,7 +147,7 @@ class Wiki(commands.Cog):
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
 		"""Shows you a list of all the pages on this server."""
-		paginator = Pages(ctx, entries=[p.title async for p in self.db.get_all_pages(ctx.guild.id)])
+		paginator = Pages(ctx, entries=[p.title async for p in self.db.get_all_pages(ctx.author)])
 
 		if not paginator.entries:
 			await ctx.send(f'No pages have been created yet. Use the {ctx.prefix}create command to make a new one.')

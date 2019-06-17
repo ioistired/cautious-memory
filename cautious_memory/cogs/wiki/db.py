@@ -49,6 +49,7 @@ class WikiDatabase(commands.Cog):
 		async for row in self.cursor(self.queries.get_page_revisions, member.guild.id, title):
 			yield row
 
+	@optional_connection
 	async def get_all_pages(self, member):
 		"""return an async iterator over all pages for the given guild"""
 		await self.check_permissions(member, Permissions.view)
@@ -87,6 +88,7 @@ class WikiDatabase(commands.Cog):
 		async for row in self.cursor(self.queries.search_pages, member.guild.id, query):
 			yield row
 
+	@optional_connection
 	async def cursor(self, query, *args):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
 		async with connection.get().transaction():
