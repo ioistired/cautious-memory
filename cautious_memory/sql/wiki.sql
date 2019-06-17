@@ -1,6 +1,10 @@
 -- :name get_page
 -- params: guild_id, title
-SELECT pages.page_id, created, content, coalesce(aliases.title, pages.title) AS title, aliased IS NOT NULL AS is_alias
+SELECT
+	pages.page_id, created, content, pages.title,
+	-- tfw condition repeated three times
+	CASE WHEN aliases.title IS NOT NULL AND lower(aliases.title) = lower($2) THEN aliases.title ELSE NULL END AS alias,
+	aliases.title IS NOT NULL AND lower(aliases.title) = lower($2) AS is_alias
 FROM
 	aliases
 	RIGHT JOIN pages USING (page_id)
