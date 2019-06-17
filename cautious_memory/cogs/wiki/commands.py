@@ -27,24 +27,12 @@ from ... import utils
 from ...utils import errors
 from ...utils.paginator import Pages, TextPages
 
-class WikiPage(commands.Converter):
-	def __init__(self, required_perms: Permissions):
-		self.required_perms = required_perms
+def has_wiki_permissions(x=None):
+	def inner(func):
+		return func
+	return inner
 
-	async def convert(self, ctx, title):
-		title = await commands.clean_content().convert(ctx, title)
-		actual_perms = await ctx.cog.permissions_db.permissions_for(ctx.author, title)
-		if self.required_perms in actual_perms or await ctx.is_privileged(ctx.author):
-			return title
-		raise errors.MissingPermissionsError(self.required_perms)
-
-def has_wiki_permissions(required_perms):
-	async def pred(ctx):
-		member_perms = await ctx.cog.permissions_db.member_permissions(ctx.author)
-		if required_perms in member_perms or await ctx.is_privileged(ctx.author):
-			return True
-		raise errors.MissingPermissionsError(required_perms)
-	return commands.check(pred)
+def WikiPage(x=None): pass
 
 class Wiki(commands.Cog):
 	def __init__(self, bot):
@@ -56,17 +44,17 @@ class Wiki(commands.Cog):
 		return bool(ctx.guild)
 
 	@commands.command(aliases=['wiki'])
-	async def show(self, ctx, *, title: WikiPage(Permissions.view)):
+	async def show(self, ctx, *, title: commands.clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page = await self.db.get_page(ctx.guild.id, title, connection=conn)
+			page = await self.db.get_page(ctx.author, title, connection=conn)
 			await self.db.log_page_use(ctx.guild.id, title, connection=conn)
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
-	async def info(self, ctx, *, title: WikiPage(Permissions.view)):
+	async def info(self, ctx, *, title: commands.clean_content):
 		"""Tells you whether a page is an alias."""
-		page = await self.db.resolve_page(ctx.guild.id, title)
+		page = await self.db.resolve_page(ctx.author, title)
 
 		if page.alias:
 			await ctx.send(f'“{page.alias}” is an alias to “{page.target}”.')

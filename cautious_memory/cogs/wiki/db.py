@@ -24,16 +24,35 @@ import discord
 from discord.ext import commands
 
 from ... import SQL_DIR
+from ..permissions.db import Permissions
 from ...utils import attrdict, errors, load_sql
+
+def optional_connection(func):
+	"""Decorator that exposes an optional "connection" keyword argument which is required for the decorated function.
+
+	If the connection kwarg is provided, that is used as the connection for the decorated function.
+	Otherwise, a new connection is acquired and passed.
+	"""
+	async def inner(self, *args, connection=None, **kwargs):
+		async def inner(conn):
+			return await func(self, *args, connection=conn, **kwargs)
+		if connection is None:
+			async with self.bot.pool.acquire() as conn:
+				return await inner(conn)
+		return await inner(connection)
+	return inner
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.permissions_db = self.bot.cogs['PermissionsDatabase']
 		with open(os.path.join(SQL_DIR, 'wiki.sql')) as f:
 			self.queries = load_sql(f)
 
-	async def get_page(self, guild_id, title, *, connection=None):
-		row = await (connection or self.bot.pool).fetchrow(self.queries.get_page, guild_id, title)
+	@optional_connection
+	async def get_page(self, member, title, *, connection):
+		await self.check_permissions(member, Permissions.view, title)
+		row = await connection.fetchrow(self.queries.get_page, member.guild.id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
@@ -53,23 +72,17 @@ class WikiDatabase(commands.Cog):
 		async for row in self.cursor(self.queries.get_recent_revisions, guild_id, cutoff):
 			yield row
 
-	async def resolve_page(self, guild_id, title, *, connection=None):
-		async def inner(conn):
-			row = await conn.fetchrow(self.queries.get_alias, guild_id, title)
-			if row is not None:
-				return attrdict(row)
+	@optional_connection
+	async def resolve_page(self, guild_id, title, *, connection):
+		row = await connection.fetchrow(self.queries.get_alias, guild_id, title)
+		if row is not None:
+			return attrdict(row)
 
-			row = await conn.fetchrow(self.queries.get_page_no_alias, guild_id, title)
-			if row is not None:
-				return attrdict(row)
+		row = await connection.fetchrow(self.queries.get_page_no_alias, guild_id, title)
+		if row is not None:
+			return attrdict(row)
 
-			raise errors.PageNotFoundError(title)
-
-		if connection is None:
-			async with self.bot.pool.acquire() as conn, conn.transaction():
-				return await inner(conn)
-
-		return await inner(connection)
+		raise errors.PageNotFoundError(title)
 
 	async def search_pages(self, guild_id, query):
 		"""return an async iterator over all pages whose title is similar to query"""
@@ -189,6 +202,15 @@ class WikiDatabase(commands.Cog):
 				return False
 
 		raise errors.PageNotFoundError(title)
+
+	async def check_permissions(self, member, required_permissions, title=None):
+		if title is None:
+			actual_perms = await self.permissions_db.member_permissions(member)
+		else:
+			actual_perms = await self.permissions_db.permissions_for(member, title)
+		if required_permissions in actual_perms or await self.bot.is_privileged(member):
+			return True
+		raise errors.MissingPermissionsError(required_permissions)
 
 	async def log_page_use(self, guild_id, title, *, connection=None):
 		await (connection or self.bot.pool).execute(self.queries.log_page_use, guild_id, title)
