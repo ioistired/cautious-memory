@@ -150,7 +150,8 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 
 	def new_permissions_message(self, role, new_perms):
 		joined = inflect.join([perm.name for perm in new_perms])
-		response = f"""{self.bot.config["success_emoji"]} @{role}'s new permissions: {joined}"""
+		role_str = '@' + role.name if role.name != '@everyone' else role.name
+		response = f"""{self.bot.config["success_emoji"]} {role_str}'s new permissions: {joined}"""
 		return discord.utils.escape_mentions(response)
 
 	def new_overwrites_message(self, entity, title, new_allow, new_deny):
