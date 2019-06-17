@@ -145,6 +145,7 @@ class WikiDatabase(commands.Cog):
 			self.queries.top_editors,
 			guild_id, cutoff)))
 
+	@optional_connection
 	async def create_page(self, member, title, content):
 		async with connection.get().transaction():
 			await self.check_permissions(member, Permissions.create)
