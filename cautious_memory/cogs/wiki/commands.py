@@ -263,7 +263,7 @@ class Wiki(commands.Cog):
 
 		await Pages(ctx, entries=entries, numbered=False).begin()
 
-	@commands.command()
+	@commands.command(ignore_extra=False)
 	async def revert(self, ctx, title: commands.clean_content, revision: int):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
