@@ -24,7 +24,7 @@ import inflect
 inflect = inflect.engine()
 
 from ... import SQL_DIR
-from ...utils import errors, load_sql
+from ...utils import connection, errors, load_sql, optional_connection
 
 class Permissions(enum.Flag):
 	# this class is the single source of truth for the permissions values
@@ -69,8 +69,8 @@ class PermissionsDatabase(commands.Cog):
 
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page_id = await conn.fetchval(self.queries.get_page_id, member.guild.id, title)
+		async with connection.get().transaction():
+			page_id = await connection.get().fetchval(self.queries.get_page_id, member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 			perms = await self.bot.pool.fetchval(
@@ -84,12 +84,13 @@ class PermissionsDatabase(commands.Cog):
 		perms = await self.bot.pool.fetchval(self.queries.member_permissions, roles, Permissions.default.value)
 		return Permissions(perms)
 
+	@optional_connection
 	async def highest_manage_permissions_role(self, member: discord.Member) -> typing.Optional[discord.Role]:
 		"""return the highest role that this member has that allows them to edit permissions"""
 		member_roles = [role.id for role in member.roles]
 		manager_roles = [
 			member.guild.get_role(row[0])
-			for row in await self.bot.pool.fetch(
+			for row in await connection.get().fetch(
 				self.queries.manage_permissions_roles,
 				member_roles, Permissions.manage_permissions.value)]
 		manager_roles.sort()
@@ -101,29 +102,34 @@ class PermissionsDatabase(commands.Cog):
 	async def set_role_permissions(self, role: discord.Role, perms: Permissions):
 		await self.bot.pool.execute(self.queries.set_role_permissions, role.id, perms.value)
 
-	async def set_default_permissions(self, guild_id, *, connection=None):
+	@optional_connection
+	async def set_default_permissions(self, guild_id):
 		"""If the guild has no @everyone permissions set up, set its permissions to the defailt.
 		This should be called whenever role permissions are updated.
 		"""
-		await (connection or self.bot.pool).execute(
+		await connection.get().execute(
 			self.queries.set_default_permissions,
 			guild_id, Permissions.default.value)
 
 	# no unset_role_permissions because unset means to give the default permissions
 	# to deny all perms just use deny_role_permissions
 
-	async def allow_role_permissions(self, role: discord.Role, new_perms: Permissions):
-		async with self.bot.pool.acquire() as conn:
-			if role.is_default:
-				await self.set_default_permissions(role.guild.id, connection=conn)
-			return Permissions(await conn.fetchval(self.queries.allow_role_permissions, role.id, new_perms.value))
+	@optional_connection
+	async def allow_role_permissions(self, member, role: discord.Role, new_perms: Permissions):
+		await self.check_permissions(member, role)
+		if role.is_default:
+			await self.set_default_permissions(role.guild.id)
+		return Permissions(await connection.get().fetchval(
+			self.queries.allow_role_permissions,
+			role.id, new_perms.value))
 
-	async def deny_role_permissions(self, role: discord.Role, perms):
+	@optional_connection
+	async def deny_role_permissions(self, member, role: discord.Role, perms):
 		"""revoke a set of permissions from a role"""
-		async with self.bot.pool.acquire() as conn:
-			if role.is_default:
-				await self.set_default_permissions(role.guild.id, connection=conn)
-			return Permissions(await conn.fetchval(self.queries.deny_role_permissions, role.id, perms.value))
+		await self.check_permissions(member, role)
+		if role.is_default:
+			await self.set_default_permissions(role.guild.id)
+		return Permissions(await connection.get().fetchval(self.queries.deny_role_permissions, role.id, perms.value))
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
@@ -165,36 +171,63 @@ class PermissionsDatabase(commands.Cog):
 		if not count:
 			raise errors.PageNotFoundError(title)
 
+	@optional_connection
 	async def add_page_permissions(
 		self,
 		*,
-		guild_id,
+		member,
 		title,
 		entity_id,
 		new_allow_perms: Permissions = Permissions.none,
 		new_deny_perms: Permissions = Permissions.none
 	):
-		"""add permissions to the set of "allow" overwrites for a page"""
+		"""add permissions to the set of "allow" or "deny" overwrites for a page"""
 		if new_allow_perms & new_deny_perms != Permissions.none:
 			# don't allow someone to both deny and allow a permission
 			raise ValueError('allowed and denied permissions must not intersect')
 
+		await self.check_permissions_for(member, title)
+
 		try:
-			return tuple(map(Permissions, await self.bot.pool.fetchrow(
+			return tuple(map(Permissions, await connection.get().fetchrow(
 				self.queries.add_page_permissions,
-				guild_id, title, entity_id, new_allow_perms.value, new_deny_perms.value)))
+				member.guild.id, title, entity_id, new_allow_perms.value, new_deny_perms.value)))
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
 			raise errors.PageNotFoundError(title)
 
-	async def unset_page_permissions(self, *, guild_id, title, entity_id, perms):
+	@optional_connection
+	async def unset_page_permissions(self, *, member, title, entity_id, perms):
 		"""remove a permission from either the allow or deny overwrites for a page
 
 		This is equivalent to the "grey check" in Discord's UI.
 		"""
-		return tuple(map(Permissions, await self.bot.pool.fetchrow(
+		await self.check_permissions_for(member, title)
+		return tuple(map(Permissions, await connection.get().fetchrow(
 			self.queries.unset_page_permissions,
-			guild_id, title, entity_id, perms.value) or (None, None)))
+			member.guild.id, title, entity_id, perms.value) or (None, None)))
+
+	@optional_connection
+	async def check_permissions(self, member, role):
+		if await self.bot.is_privileged(member):
+			return True
+
+		highest_role = await self.highest_manage_permissions_role(member)
+		if highest_role and role < highest_role:
+			return True
+
+		raise errors.MissingPermissionsError(Permissions.manage_permissions)
+
+	@optional_connection
+	async def check_permissions_for(self, member, title):
+		"""raise if the member doesn't have Manage Permissions for this page"""
+		if await self.bot.is_privileged(member):
+			return True
+
+		if Permissions.manage_permissions in await self.permissions_for(member, title):
+			return True
+
+		raise errors.MissingPermissionsError(Permissions.manage_permissions)
 
 def setup(bot):
 	bot.add_cog(PermissionsDatabase(bot))

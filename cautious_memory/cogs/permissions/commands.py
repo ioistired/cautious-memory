@@ -22,29 +22,18 @@ import inflect
 inflect = inflect.engine()
 
 from .db import Permissions
-from ...utils.errors import MissingPermissionsError
+from ...utils import connection
 
-class UserEditableRole(commands.Converter):
-	@classmethod
-	async def convert(cls, ctx, arg):
+class RoleOrEveryone(commands.Converter):
+	async def convert(self, ctx, arg):
 		try:
-			role = await commands.RoleConverter().convert(ctx, arg)
+			return await commands.RoleConverter().convert(ctx, arg)
 		except commands.BadArgument:
 			if arg == 'everyone':
-				role = ctx.guild.default_role
-			else:
-				raise
+				return ctx.guild.default_role
+			raise
 
-		if await ctx.is_privileged(ctx.author):
-			return role
-
-		highest_role = await ctx.cog.db.highest_manage_permissions_role(ctx.author)
-		if highest_role and role < highest_role:
-			return role
-
-		raise MissingPermissionsError(Permissions.manage_permissions)
-
-Entity = typing.Union[UserEditableRole, discord.Member]
+Entity = typing.Union[RoleOrEveryone, discord.Member]
 
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""Commands that let you manage the permissions on pages.
@@ -86,23 +75,23 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		return bool(ctx.guild)
 
 	@commands.command(name='grant')
-	async def grant_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
+	async def grant_permissions(self, ctx, role: RoleOrEveryone, *permissions: Permissions):
 		"""Grant wiki permissions to a Discord role.
 
 		To grant permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
-		new_perms = await self.db.allow_role_permissions(role, perms)
+		new_perms = await self.db.allow_role_permissions(ctx.author, role, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='deny', aliases=['revoke'])
-	async def deny_permissions(self, ctx, role: UserEditableRole, *permissions: Permissions):
+	async def deny_permissions(self, ctx, role: RoleOrEveryone, *permissions: Permissions):
 		"""Deny wiki permissions to a Discord role.
 
 		To deny permissions to everyone, just specify "everyone" as the role.
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
-		new_perms = await self.db.deny_role_permissions(role, perms)
+		new_perms = await self.db.deny_role_permissions(ctx.author, role, perms)
 		await ctx.send(self.new_permissions_message(role, new_perms))
 
 	@commands.command(name='grant-page')
@@ -120,7 +109,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
-			guild_id=ctx.guild.id, entity_id=role_or_member.id, title=page_title, new_allow_perms=perms)
+			member=ctx.author, entity_id=role_or_member.id, title=page_title, new_allow_perms=perms)
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='deny-page')
@@ -138,7 +127,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
-			guild_id=ctx.guild.id, entity_id=role_or_member.id, title=page_title, new_deny_perms=perms)
+			member=ctx.author, entity_id=role_or_member.id, title=page_title, new_deny_perms=perms)
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='uncheck-page')
@@ -156,7 +145,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		"""
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
-			guild_id=ctx.guild.id, entity_id=role_or_member.id, title=page_title, perms=perms)
+			member=ctx.author, entity_id=role_or_member.id, title=page_title, perms=perms)
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	def new_permissions_message(self, role, new_perms):
