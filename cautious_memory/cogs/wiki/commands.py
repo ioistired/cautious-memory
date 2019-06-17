@@ -272,7 +272,7 @@ class Wiki(commands.Cog):
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			connection.set(conn)
 			try:
-				revision, = await self.db.get_individual_revisions(ctx.author, [revision])
+				revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
 			except ValueError:
 				await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
 				return
