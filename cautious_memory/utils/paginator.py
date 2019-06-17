@@ -74,12 +74,12 @@ class Pages:
 		self.numbered = numbered
 		self.text_message = None
 		self.reaction_emojis = collections.OrderedDict([
+			('\N{BLACK SQUARE FOR STOP}', self.stop),
 			('\N{BLACK LEFT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', self.first_page),
 			('\N{BLACK LEFT-POINTING TRIANGLE}', self.previous_page),
 			('\N{BLACK RIGHT-POINTING TRIANGLE}', self.next_page),
 			('\N{BLACK RIGHT-POINTING DOUBLE TRIANGLE WITH VERTICAL BAR}', self.last_page),
 			('\N{INPUT SYMBOL FOR NUMBERS}', self.numbered_page),
-			('\N{BLACK SQUARE FOR STOP}', self.stop),
 			('\N{INFORMATION SOURCE}', self.show_help),
 		])
 
@@ -155,8 +155,10 @@ class Pages:
 				# it from the default set
 				continue
 
-			with contextlib.suppress(discord.HTTPException):
+			try:
 				await self.message.add_reaction(reaction)
+			except discord.HTTPException:
+				break
 
 	async def checked_show_page(self, page):
 		if page != 0 and page <= self.maximum_pages:
