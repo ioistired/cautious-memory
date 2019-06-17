@@ -299,7 +299,7 @@ class Wiki(commands.Cog):
 
 		async with self.bot.pool.acquire() as conn:
 			try:
-				old, new = await self.db.get_individual_revisions(ctx.author, (revision_id_1, revision_id_2))
+				old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
 			except ValueError:
 				await ctx.send(
 					'One or more provided revision IDs were invalid. '
