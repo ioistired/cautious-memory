@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
 import re
 
 import discord
@@ -60,3 +61,10 @@ def load_sql(fp):
 		queries[tag] = ''.join(query)
 
 	return queries
+
+def bytes_to_int(x):
+	return int.from_bytes(x, byteorder='big')
+
+def int_to_bytes(n):
+	num_bytes = int(math.ceil(n.bit_length() / 8))
+	return n.to_bytes(num_bytes, byteorder='big')
