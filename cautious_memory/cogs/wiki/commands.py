@@ -298,6 +298,7 @@ class Wiki(commands.Cog):
 			return
 
 		async with self.bot.pool.acquire() as conn:
+			connection.set(conn)
 			try:
 				old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
 			except ValueError:
