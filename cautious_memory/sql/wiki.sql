@@ -134,9 +134,7 @@ RETURNING page_id
 WITH page AS (
 	SELECT page_id, guild
 	FROM pages
-	WHERE
-		guild = $1
-		AND lower(title) = LOWER($3))
+	WHERE guild = $1 AND lower(title) = LOWER($3))
 INSERT INTO aliases (page_id, guild, title)
 VALUES ((SELECT page_id FROM page), (SELECT guild FROM page), $2)
 
@@ -170,7 +168,8 @@ WHERE page_id = $1
 WITH page AS (
 	SELECT page_id
 	FROM aliases RIGHT JOIN pages USING (page_id)
-	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+	LIMIT 1)
 INSERT INTO page_usage_history (page_id)
 VALUES ((SELECT * FROM page))
 
@@ -182,7 +181,8 @@ WITH page AS (
 	SELECT page_id
 	FROM aliases RIGHT JOIN pages USING (page_id)
 	WHERE pages.guild = $1 AND
-	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+	LIMIT 1)
 SELECT count(*)
 FROM page_usage_history
 WHERE page_id = (SELECT * FROM page) AND time > $3
@@ -193,7 +193,8 @@ WITH page AS (
 	SELECT page_id
 	FROM aliases RIGHT JOIN pages USING (page_id)
 	WHERE pages.guild = $1 AND
-	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+	LIMIT 1)
 SELECT count(*)
 FROM revisions
 WHERE page_id = (SELECT * FROM page)
@@ -239,7 +240,8 @@ LIMIT 3
 WITH page_id AS (
 	SELECT page_id
 	FROM pages LEFT JOIN aliases USING (page_id)
-	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2)))
+	WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+	LIMIT 1)
 SELECT author AS id, count(*) AS count, count(*)::float8 / sum(count(*)) OVER () AS rank
 FROM revisions
 WHERE page_id = (SELECT * FROM page_id) AND revised > $3
