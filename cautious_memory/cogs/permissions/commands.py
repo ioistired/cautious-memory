@@ -24,6 +24,9 @@ inflect = inflect.engine()
 from .db import Permissions
 from ...utils import connection
 
+# see reasoning in cogs.wiki.commands
+clean_content = commands.clean_content(use_nicknames=False)
+
 class RoleOrEveryone(commands.Converter):
 	async def convert(self, ctx, arg):
 		try:
@@ -99,7 +102,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		self,
 		ctx,
 		role_or_member: Entity,
-		page_title: commands.clean_content,
+		page_title: clean_content,
 		*permissions: Permissions
 	):
 		"""Grant permissions to a certain role on a certain page.
@@ -117,7 +120,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		self,
 		ctx,
 		role_or_member: Entity,
-		page_title: commands.clean_content,
+		page_title: clean_content,
 		*permissions: Permissions
 	):
 		"""Deny permissions to a certain role or member on a certain page.
@@ -135,7 +138,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		self,
 		ctx,
 		role_or_member: Entity,
-		page_title: commands.clean_content,
+		page_title: clean_content,
 		*permissions: Permissions
 	):
 		""""Uncheck" (neither allow nor deny) certain permissions for a role or member on a page.

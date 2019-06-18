@@ -27,6 +27,10 @@ from ... import utils
 from ...utils import connection, errors
 from ...utils.paginator import Pages, TextPages
 
+# if someone names a page with an @mention, we should use the username of that user
+# instead of a nickname, because pages are usually longer-lived than nicknames
+clean_content = commands.clean_content(use_nicknames=False)
+
 class RevisionID(commands.Converter):
 	async def convert(self, ctx, arg):
 		try:
@@ -39,7 +43,7 @@ class RevisionID(commands.Converter):
 		except ValueError:
 			raise commands.BadArgument('Invalid revision ID specified.')
 
-		self.title = await commands.clean_content().convert(ctx, title)
+		self.title = await clean_content.convert(ctx, title)
 		return self
 
 class Wiki(commands.Cog):
@@ -52,7 +56,7 @@ class Wiki(commands.Cog):
 		return bool(ctx.guild)
 
 	@commands.command(aliases=['wiki'])
-	async def show(self, ctx, *, title: commands.clean_content):
+	async def show(self, ctx, *, title: clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			connection.set(conn)
@@ -61,7 +65,7 @@ class Wiki(commands.Cog):
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
-	async def info(self, ctx, *, title: commands.clean_content):
+	async def info(self, ctx, *, title: clean_content):
 		"""Tells you whether a page is an alias."""
 		page = await self.db.resolve_page(ctx.author, title)
 
@@ -72,7 +76,7 @@ class Wiki(commands.Cog):
 				f'“{page.target}” is not an alias. Use the {ctx.prefix}history command for more information on it.')
 
 	@commands.command()
-	async def stats(self, ctx, *, title: commands.clean_content = None):
+	async def stats(self, ctx, *, title: clean_content = None):
 		"""Shows server-wide statistics on page usage and revision."""
 		if title is None:
 			await self.guild_stats(ctx)
@@ -136,7 +140,7 @@ class Wiki(commands.Cog):
 		await ctx.send(embed=e)
 
 	@commands.command()
-	async def raw(self, ctx, *, title: commands.clean_content):
+	async def raw(self, ctx, *, title: clean_content):
 		"""Shows the raw contents of a page.
 
 		This is with markdown escaped, which is useful for editing.
@@ -148,7 +152,7 @@ class Wiki(commands.Cog):
 		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
 
 	@commands.command()
-	async def altraw(self, ctx, *, title: commands.clean_content):
+	async def altraw(self, ctx, *, title: clean_content):
 		"""Shows the raw contents of a page in a code block.
 
 		This is for some tricky markdown that is hard to show outside of a code block, like ">" at the end of a link.
@@ -202,7 +206,7 @@ class Wiki(commands.Cog):
 		await paginator.begin()
 
 	@commands.command(aliases=['add'])
-	async def create(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
+	async def create(self, ctx, title: clean_content, *, content: clean_content):
 		"""Adds a new page to the wiki.
 		If the title has spaces, you must surround it in quotes.
 		"""
@@ -212,7 +216,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revise'])
-	async def edit(self, ctx, title: commands.clean_content, *, content: commands.clean_content):
+	async def edit(self, ctx, title: clean_content, *, content: clean_content):
 		"""Edits an existing wiki page.
 		If the title has spaces, you must surround it in quotes.
 		"""
@@ -220,7 +224,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['remove', 'rm', 'del'])
-	async def delete(self, ctx, *, title: commands.clean_content):
+	async def delete(self, ctx, *, title: clean_content):
 		"""Deletes a wiki page. This deletes all of its revisions and aliases, as well.
 
 		You must have the "delete pages" permission.
@@ -232,7 +236,7 @@ class Wiki(commands.Cog):
 			await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions and aliases successfully deleted.')
 
 	@commands.command(ignore_extra=False)
-	async def alias(self, ctx, new_name: commands.clean_content, old_name: commands.clean_content):
+	async def alias(self, ctx, new_name: clean_content, old_name: clean_content):
 		# this docstring is used under the MIT License
 		# Copyright © 2015 Rapptz
 		# https://github.com/Rapptz/RoboDanny/blob/27304f6/cogs/tags.py#L305–L313
@@ -249,7 +253,7 @@ class Wiki(commands.Cog):
 		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
 
 	@commands.command(ignore_extra=False)
-	async def ln(self, ctx, target: commands.clean_content, link_name: commands.clean_content):
+	async def ln(self, ctx, target: clean_content, link_name: clean_content):
 		"""Creates an alias for a pre-existing page.
 
 		This command is identical to the alias command except for the argument order.
@@ -257,7 +261,7 @@ class Wiki(commands.Cog):
 		await ctx.invoke(self.alias, link_name, target)
 
 	@commands.command(ignore_extra=False)  # in case someone tries to not quote the new_title
-	async def rename(self, ctx, title: commands.clean_content, new_title: commands.clean_content):
+	async def rename(self, ctx, title: clean_content, new_title: clean_content):
 		"""Renames a wiki page.
 
 		If the old title or the new title have spaces in them, you must surround them in quotes.
@@ -267,7 +271,7 @@ class Wiki(commands.Cog):
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
 
 	@commands.command(aliases=['revisions'])
-	async def history(self, ctx, *, title: commands.clean_content):
+	async def history(self, ctx, *, title: clean_content):
 		"""Shows the revisions of a particular page"""
 
 		entries = [
