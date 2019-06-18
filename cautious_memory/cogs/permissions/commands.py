@@ -22,7 +22,6 @@ import inflect
 inflect = inflect.engine()
 
 from .db import Permissions
-from ...utils import connection
 
 # see reasoning in cogs.wiki.commands
 clean_content = commands.clean_content(use_nicknames=False)

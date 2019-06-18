@@ -25,7 +25,7 @@ from discord.ext import commands
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import attrdict, connection, errors, load_sql, optional_connection
+from ...utils import attrdict, connection, errors, load_sql, optional_connection, set_connection
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
@@ -37,7 +37,7 @@ class WikiDatabase(commands.Cog):
 	@optional_connection
 	async def get_page(self, member, title):
 		await self.check_permissions(member, Permissions.view, title)
-		row = await connection.get().fetchrow(self.queries.get_page, member.guild.id, title)
+		row = await connection().fetchrow(self.queries.get_page, member.guild.id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
@@ -71,11 +71,11 @@ class WikiDatabase(commands.Cog):
 		# page it is an alias to. Consider allowing anyone to resolve an alias, or only denying those who
 		# were globally denied view permissions.
 		await self.check_permissions(member, Permissions.view, title)
-		row = await connection.get().fetchrow(self.queries.get_alias, member.guild.id, title)
+		row = await connection().fetchrow(self.queries.get_alias, member.guild.id, title)
 		if row is not None:
 			return attrdict(row)
 
-		row = await connection.get().fetchrow(self.queries.get_page_no_alias, member.guild.id, title)
+		row = await connection().fetchrow(self.queries.get_page_no_alias, member.guild.id, title)
 		if row is not None:
 			return attrdict(row)
 
@@ -91,8 +91,8 @@ class WikiDatabase(commands.Cog):
 	@optional_connection
 	async def cursor(self, query, *args):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
-		async with connection.get().transaction():
-			async for row in connection.get().cursor(query, *args):
+		async with connection().transaction():
+			async for row in connection().cursor(query, *args):
 				yield attrdict(row)
 
 	@optional_connection
@@ -100,7 +100,7 @@ class WikiDatabase(commands.Cog):
 		"""return a list of page revisions for the given guild.
 		the revisions are sorted by their revision ID.
 		"""
-		results = list(map(attrdict, await connection.get().fetch(
+		results = list(map(attrdict, await connection().fetch(
 			self.queries.get_individual_revisions,
 			guild_id, revision_ids)))
 
@@ -147,23 +147,23 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def create_page(self, member, title, content):
-		async with connection.get().transaction():
+		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
 			try:
-				page_id = await connection.get().fetchval(self.queries.create_page, member.guild.id, title)
+				page_id = await connection().fetchval(self.queries.create_page, member.guild.id, title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
-			await connection.get().execute(self.queries.create_first_revision, page_id, member.id, content, title)
+			await connection().execute(self.queries.create_first_revision, page_id, member.id, content, title)
 
 	@optional_connection
 	async def alias_page(self, member, alias_title, target_title):
-		async with connection.get().transaction():
+		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
 			await self.check_permissions(member, Permissions.view, target_title)
 
 			try:
-				await connection.get().execute(self.queries.alias_page, member.guild.id, alias_title, target_title)
+				await connection().execute(self.queries.alias_page, member.guild.id, alias_title, target_title)
 			except asyncpg.NotNullViolationError:
 				# the CTE returned no rows
 				raise errors.PageNotFoundError(target_title)
@@ -172,15 +172,15 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def revise_page(self, member, title, new_content):
-		async with connection.get().transaction():
+		async with connection().transaction():
 			await self.check_permissions(member, Permissions.edit, title)
 
-			page_id = await connection.get().fetchval(self.queries.get_page_id, member.guild.id, title)
+			page_id = await connection().fetchval(self.queries.get_page_id, member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
 			try:
-				await connection.get().execute(self.queries.create_revision, page_id, member.id, new_content)
+				await connection().execute(self.queries.create_revision, page_id, member.id, new_content)
 			except asyncpg.StringDataRightTruncationError as exc:
 				# XXX dumb way to do it but it's the only way i've got
 				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
@@ -188,16 +188,16 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def rename_page(self, member, title, new_title):
-		async with connection.get().transaction():
+		async with connection().transaction():
 			try:
-				page_id = await connection.get().fetchval(self.queries.rename_page, member.guild.id, title, new_title)
+				page_id = await connection().fetchval(self.queries.rename_page, member.guild.id, title, new_title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await connection.get().execute(self.queries.log_page_rename, page_id, member.id, new_title)
+			await connection().execute(self.queries.log_page_rename, page_id, member.id, new_title)
 
 	@optional_connection
 	async def delete_page(self, member, title) -> bool:
@@ -205,7 +205,7 @@ class WikiDatabase(commands.Cog):
 
 		return whether an alias was deleted
 		"""
-		async with connection.get().transaction():
+		async with connection().transaction():
 			# we use resolve_page here for separate permissions check depending on type
 			is_alias = (await self.resolve_page(member, title)).alias
 
@@ -214,13 +214,13 @@ class WikiDatabase(commands.Cog):
 				# deleting an alias is a prerequisite to recreating it with a different title
 				# and deleting an alias is nowhere near as destructive as deleting a page
 				await self.check_permissions(member, Permissions.edit)
-				command_tag = await connection.get().execute(self.queries.delete_alias, member.guild.id, title)
+				command_tag = await connection().execute(self.queries.delete_alias, member.guild.id, title)
 				if command_tag.split()[-1] == '0':
 					raise RuntimeError('page is supposed to be an alias but delete_alias did not delete it', title)
 				return True
 
 			await self.check_permissions(member, Permissions.delete, title)
-			command_tag = await connection.get().execute(self.queries.delete_page, member.guild.id, title)
+			command_tag = await connection().execute(self.queries.delete_page, member.guild.id, title)
 			if command_tag.split()[-1] == '0':
 				raise RuntimeError('page is not supposed to be an alias but delete_page did not delete it', title)
 
@@ -240,7 +240,7 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def log_page_use(self, guild_id, title):
-		await connection.get().execute(self.queries.log_page_use, guild_id, title)
+		await connection().execute(self.queries.log_page_use, guild_id, title)
 
 	## Permissions
 

@@ -20,8 +20,6 @@ import re
 import aiocontextvars
 import discord
 
-connection = aiocontextvars.ContextVar('connection')
-
 attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
 	'__setattr__': dict.__setitem__,
@@ -73,16 +71,21 @@ def int_to_bytes(n):
 	num_bytes = int(math.ceil(n.bit_length() / 8))
 	return n.to_bytes(num_bytes, byteorder='big')
 
+_connection = aiocontextvars.ContextVar('connection')
+# optimize these getattrs so it's cleaner and faster
+set_connection = _connection.set
+connection = _connection.get
+
 def optional_connection(func):
 	"""Decorator that acquires a connection for the decorated function if the contextvar is not set."""
 	# XXX idk how to avoid duplicating this code
 	if inspect.isasyncgenfunction(func):
 		async def inner(self, *args, **kwargs):
 			try:
-				connection.get()
+				connection()
 			except LookupError:
 				async with self.bot.pool.acquire() as conn:
-					connection.set(conn)
+					set_connection(conn)
 					# XXX this doesn't handle two-way generators
 					# but I don't have any of those anyway.
 					# If I add one, make sure to use async_generator.yield_from_ here
@@ -94,10 +97,10 @@ def optional_connection(func):
 	else:
 		async def inner(self, *args, **kwargs):
 			try:
-				connection.get()
+				connection()
 			except LookupError:
 				async with self.bot.pool.acquire() as conn:
-					connection.set(conn)
+					set_connection(conn)
 					return await func(self, *args, **kwargs)
 			else:
 				return await func(self, *args, **kwargs)

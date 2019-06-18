@@ -69,8 +69,8 @@ class PermissionsDatabase(commands.Cog):
 
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
-		async with connection.get().transaction():
-			page_id = await connection.get().fetchval(self.queries.get_page_id, member.guild.id, title)
+		async with connection().transaction():
+			page_id = await connection().fetchval(self.queries.get_page_id, member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 			perms = await self.bot.pool.fetchval(
@@ -90,7 +90,7 @@ class PermissionsDatabase(commands.Cog):
 		member_roles = [role.id for role in member.roles]
 		manager_roles = [
 			member.guild.get_role(row[0])
-			for row in await connection.get().fetch(
+			for row in await connection().fetch(
 				self.queries.manage_permissions_roles,
 				member_roles, Permissions.manage_permissions.value)]
 		manager_roles.sort()
@@ -107,7 +107,7 @@ class PermissionsDatabase(commands.Cog):
 		"""If the guild has no @everyone permissions set up, set its permissions to the defailt.
 		This should be called whenever role permissions are updated.
 		"""
-		await connection.get().execute(
+		await connection().execute(
 			self.queries.set_default_permissions,
 			guild_id, Permissions.default.value)
 
@@ -119,7 +119,7 @@ class PermissionsDatabase(commands.Cog):
 		await self.check_permissions(member, role)
 		if role.is_default:
 			await self.set_default_permissions(role.guild.id)
-		return Permissions(await connection.get().fetchval(
+		return Permissions(await connection().fetchval(
 			self.queries.allow_role_permissions,
 			role.id, new_perms.value))
 
@@ -129,7 +129,7 @@ class PermissionsDatabase(commands.Cog):
 		await self.check_permissions(member, role)
 		if role.is_default:
 			await self.set_default_permissions(role.guild.id)
-		return Permissions(await connection.get().fetchval(self.queries.deny_role_permissions, role.id, perms.value))
+		return Permissions(await connection().fetchval(self.queries.deny_role_permissions, role.id, perms.value))
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
@@ -189,7 +189,7 @@ class PermissionsDatabase(commands.Cog):
 		await self.check_permissions_for(member, title)
 
 		try:
-			return tuple(map(Permissions, await connection.get().fetchrow(
+			return tuple(map(Permissions, await connection().fetchrow(
 				self.queries.add_page_permissions,
 				member.guild.id, title, entity_id, new_allow_perms.value, new_deny_perms.value)))
 		except asyncpg.NotNullViolationError:
@@ -203,7 +203,7 @@ class PermissionsDatabase(commands.Cog):
 		This is equivalent to the "grey check" in Discord's UI.
 		"""
 		await self.check_permissions_for(member, title)
-		return tuple(map(Permissions, await connection.get().fetchrow(
+		return tuple(map(Permissions, await connection().fetchrow(
 			self.queries.unset_page_permissions,
 			member.guild.id, title, entity_id, perms.value) or (None, None)))
 
