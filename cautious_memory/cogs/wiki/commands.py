@@ -27,6 +27,21 @@ from ... import utils
 from ...utils import connection, errors
 from ...utils.paginator import Pages, TextPages
 
+class RevisionID(commands.Converter):
+	async def convert(self, ctx, arg):
+		try:
+			title, revision = arg.rsplit(None, 1)
+		except ValueError:
+			raise commands.BadArgument('A revision ID is required.')
+
+		try:
+			self.revision = int(revision)
+		except ValueError:
+			raise commands.BadArgument('Invalid revision ID specified.')
+
+		self.title = await commands.clean_content().convert(ctx, title)
+		return self
+
 class Wiki(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
@@ -263,12 +278,13 @@ class Wiki(commands.Cog):
 
 		await Pages(ctx, entries=entries, numbered=False).begin()
 
-	@commands.command(ignore_extra=False)
-	async def revert(self, ctx, title: commands.clean_content, revision: int):
+	@commands.command(usage='<title> <revision ID>')
+	async def revert(self, ctx, *, arg: RevisionID):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
-		If the title has spaces, you must surround it in quotes.
 		"""
+		title, revision = arg.title, arg.revision
+
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			connection.set(conn)
 			try:
