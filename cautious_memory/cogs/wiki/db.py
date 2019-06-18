@@ -206,14 +206,25 @@ class WikiDatabase(commands.Cog):
 		return whether an alias was deleted
 		"""
 		async with connection.get().transaction():
-			await self.check_permissions(member, Permissions.delete, title)
-			command_tag = await connection.get().execute(self.queries.delete_alias, member.guild.id, title)
-			if command_tag.split()[-1] != '0':
+			# we use resolve_page here for separate permissions check depending on type
+			is_alias = (await self.resolve_page(member, title)).alias
+
+			if is_alias:
+				# why Permissions.edit and not Permissions.delete?
+				# deleting an alias is a prerequisite to recreating it with a different title
+				# and deleting an alias is nowhere near as destructive as deleting a page
+				await self.check_permissions(member, Permissions.edit)
+				command_tag = await connection.get().execute(self.queries.delete_alias, member.guild.id, title)
+				if command_tag.split()[-1] == '0':
+					raise RuntimeError('page is supposed to be an alias but delete_alias did not delete it', title)
 				return True
 
+			await self.check_permissions(member, Permissions.delete, title)
 			command_tag = await connection.get().execute(self.queries.delete_page, member.guild.id, title)
-			if command_tag.split()[-1] != '0':
-				return False
+			if command_tag.split()[-1] == '0':
+				raise RuntimeError('page is not supposed to be an alias but delete_page did not delete it', title)
+
+			return False
 
 		raise errors.PageNotFoundError(title)
 
