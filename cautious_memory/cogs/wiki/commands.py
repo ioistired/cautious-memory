@@ -293,7 +293,7 @@ class Wiki(commands.Cog):
 				await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
 				return
 
-			if revision.title.lower() != title.lower():
+			if revision.current_title.lower() != title.lower():
 				await ctx.send('Error: This revision is for another page.')
 				return
 
