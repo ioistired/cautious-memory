@@ -18,6 +18,7 @@ import math
 import re
 
 import aiocontextvars
+import asyncpg
 import discord
 
 attrdict = type('attrdict', (dict,), {
@@ -82,8 +83,10 @@ def optional_connection(func):
 	if inspect.isasyncgenfunction(func):
 		async def inner(self, *args, **kwargs):
 			try:
-				connection()
-			except LookupError:
+				# allow someone to call a decorated function twice within the same Task
+				# the second time, a new connection will be acquired
+				connection().is_closed()
+			except (asyncpg.InterfaceError, LookupError):
 				async with self.bot.pool.acquire() as conn:
 					set_connection(conn)
 					# XXX this doesn't handle two-way generators
@@ -97,8 +100,8 @@ def optional_connection(func):
 	else:
 		async def inner(self, *args, **kwargs):
 			try:
-				connection()
-			except LookupError:
+				connection().is_closed()
+			except (asyncpg.InterfaceError, LookupError):
 				async with self.bot.pool.acquire() as conn:
 					set_connection(conn)
 					return await func(self, *args, **kwargs)
