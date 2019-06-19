@@ -112,8 +112,8 @@ ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-ne
 
 -- :name create_page
 -- params: guild, title
-INSERT INTO pages (guild, title)
-VALUES ($1, $2)
+INSERT INTO pages (guild, title, latest_revision)
+VALUES ($1, $2, 0)
 RETURNING page_id
 
 -- :name get_page_id
