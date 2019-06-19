@@ -88,9 +88,6 @@ class Pages:
 		else:
 			self.permissions = self.channel.permissions_for(ctx.bot.user)
 
-		if not self.permissions.embed_links:
-			raise CannotPaginate('Bot does not have embed links permission.')
-
 		if not self.permissions.send_messages:
 			raise CannotPaginate('Bot cannot send messages.')
 
@@ -303,6 +300,11 @@ class FieldPages(Pages):
 	Similar to Pages except entries should be a list of
 	tuples having (key, value) to show as embed fields instead.
 	"""
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		if not self.permissions.embed_links:
+			raise CannotPaginate('Bot does not have embed links permission.')
 
 	async def show_page(self, page, *, first=False):
 		self.current_page = page
