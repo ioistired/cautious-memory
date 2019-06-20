@@ -58,9 +58,6 @@ class CautiousMemory(commands.AutoShardedBot):
 	def process_config(self):
 		self.owners = set(self.config.get('extra_owners', []))
 
-		with contextlib.suppress(KeyError):
-			self.config['copyright_license_file'] = os.path.join(BASE_DIR, self.config['copyright_license_file'])
-
 		self.config['success_emoji'] = utils.convert_emoji(self.config['success_emoji'])
 		self.config['failure_emoji'] = utils.convert_emoji(self.config['failure_emoji'])
 
