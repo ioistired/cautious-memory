@@ -18,6 +18,7 @@ setuptools.setup(
 
 	install_requires=[
 		'aiocontextvars',
+		'async_exit_stack',
 		'asyncpg',
 		'ben_cogs[sql]>=0.11.0,<1.0.0',
 		'discord.py>=1.2.2,<2.0.0',
