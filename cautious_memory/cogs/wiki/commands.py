@@ -159,7 +159,7 @@ class Wiki(commands.Cog):
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			set_connection(conn)
-			page = await self.db.get_page(ctx.guild.id, title)
+			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
 		await ctx.send(utils.code_block(utils.escape_code_blocks(page.content)))
 
