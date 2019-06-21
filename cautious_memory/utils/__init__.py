@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import contextlib
 import inspect
 import math
 import re
@@ -20,7 +21,6 @@ import re
 import aiocontextvars
 import asyncpg
 import discord
-from async_exit_stack import AsyncExitStack
 
 attrdict = type('attrdict', (dict,), {
 	'__getattr__': dict.__getitem__,
@@ -80,27 +80,33 @@ connection = _connection.get
 
 def optional_connection(func):
 	"""Decorator that acquires a connection for the decorated function if the contextvar is not set."""
-	async def get_conn(self):
-		stack = AsyncExitStack()
-
-		try:
-			# allow someone to call a decorated function twice within the same Task
-			# the second time, a new connection will be acquired
-			connection().is_closed()
-		except (asyncpg.InterfaceError, LookupError):
-			set_connection(await stack.enter_async_context(self.bot.pool.acquire()))
-
-		return stack
+	class pool:
+		def __init__(self, pool):
+			self.pool = pool
+		async def __aenter__(self):
+			try:
+				# allow someone to call a decorated function twice within the same Task
+				# the second time, a new connection will be acquired
+				connection().is_closed()
+			except (asyncpg.InterfaceError, LookupError):
+				self.connection = conn = await self.pool.acquire()
+				set_connection(conn)
+				return conn
+			else:
+				return connection()
+		async def __aexit__(self, *excinfo):
+			with contextlib.suppress(AttributeError):
+				await self.connection.close()
 
 	if inspect.isasyncgenfunction(func):
 		async def inner(self, *args, **kwargs):
-			async with await get_conn(self):
+			async with pool(self.bot.pool) as conn:
 				# this does not handle two-way async gens, but i don't have any of those either
 				async for x in func(self, *args, **kwargs):
 					yield x
 	else:
 		async def inner(self, *args, **kwargs):
-			async with await get_conn(self):
+			async with pool(self.bot.pool) as conn:
 				return await func(self, *args, **kwargs)
 
 	return inner
