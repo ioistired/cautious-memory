@@ -74,9 +74,9 @@ def int_to_bytes(n):
 	return n.to_bytes(num_bytes, byteorder='big')
 
 _connection = aiocontextvars.ContextVar('connection')
-# optimize these getattrs so it's cleaner and faster
-set_connection = _connection.set
-connection = _connection.get
+# make the interface a bit shorter
+connection = lambda: _connection.get()
+connection.set = _connection.set
 
 def optional_connection(func):
 	"""Decorator that acquires a connection for the decorated function if the contextvar is not set."""
@@ -90,7 +90,7 @@ def optional_connection(func):
 				connection().is_closed()
 			except (asyncpg.InterfaceError, LookupError):
 				self.connection = conn = await self.pool.acquire()
-				set_connection(conn)
+				connection.set(conn)
 				return conn
 			else:
 				return connection()

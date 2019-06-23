@@ -25,7 +25,7 @@ from discord.ext import commands
 
 from ..permissions.db import Permissions
 from ... import utils
-from ...utils import connection, errors, set_connection
+from ...utils import connection, errors
 from ...utils.paginator import Pages, TextPages
 
 # if someone names a page with an @mention, we should use the username of that user
@@ -60,7 +60,7 @@ class Wiki(commands.Cog):
 	async def show(self, ctx, *, title: clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			set_connection(conn)
+			connection.set(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
 		await ctx.send(page.content)
@@ -90,7 +90,7 @@ class Wiki(commands.Cog):
 		# no transaction because maybe doing a lot of COUNTing would require table wide locks
 		# to maintain consistency (dunno, just a hunch)
 		async with self.bot.pool.acquire() as conn:
-			set_connection(conn)
+			connection.set(conn)
 			page_count = await self.db.page_count(ctx.guild.id)
 			revisions_count = await self.db.revisions_count(ctx.guild.id)
 			total_page_uses = await self.db.total_page_uses(ctx.guild.id, cutoff=cutoff)
@@ -124,7 +124,7 @@ class Wiki(commands.Cog):
 		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
 		e = discord.Embed(title=f'Stats for “{title}”')
 		async with self.bot.pool.acquire() as conn:
-			set_connection(conn)
+			connection.set(conn)
 			await self.db.check_permissions(ctx.author, Permissions.view, title)
 			# top editors is first so that it can detect PageNotFound
 			top_editors = await self.db.top_page_editors(ctx.guild.id, title)
@@ -149,7 +149,7 @@ class Wiki(commands.Cog):
 		This is with markdown escaped, which is useful for editing.
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			set_connection(conn)
+			connection.set(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
 
@@ -174,7 +174,7 @@ class Wiki(commands.Cog):
 		This is for some tricky markdown that is hard to show outside of a code block, like ">" at the end of a link.
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			set_connection(conn)
+			connection.set(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
 
@@ -312,7 +312,7 @@ class Wiki(commands.Cog):
 		title, revision = arg.title, arg.revision
 
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			set_connection(conn)
+			connection.set(conn)
 			try:
 				revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
 			except ValueError:
@@ -340,7 +340,7 @@ class Wiki(commands.Cog):
 			return
 
 		async with self.bot.pool.acquire() as conn:
-			set_connection(conn)
+			connection.set(conn)
 			try:
 				old, new = await self.db.get_individual_revisions(ctx.guild.id, (revision_id_1, revision_id_2))
 			except ValueError:

@@ -25,7 +25,7 @@ from discord.ext import commands
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import attrdict, connection, errors, load_sql, optional_connection, set_connection
+from ...utils import attrdict, connection, errors, load_sql, optional_connection
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
