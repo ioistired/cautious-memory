@@ -141,6 +141,7 @@ class Wiki(commands.Cog):
 		await ctx.send(embed=e)
 
 	emoji_escape_regex = re.compile(r'<a?(:\w+:)\d+>', re.ASCII)
+	emoji_remove_escaped_underscores_regex = re.compile(r':(?:\w|\\_)+:', re.ASCII)
 
 	@commands.command()
 	async def raw(self, ctx, *, title: clean_content):
@@ -162,7 +163,9 @@ class Wiki(commands.Cog):
 			# since there is no markdown in a plaintext file
 			await ctx.send(discord.File(io.StringIO(escaped), page.title + '.md'))
 		else:
-			escaped2 = discord.utils.escape_markdown(escaped)
+			# escape_markdown messes up emojis for mobile users
+			escaped2 = self.emoji_remove_escaped_underscores_regex.sub(
+				lambda m: m[0].replace(r'\_', '_'), discord.utils.escape_markdown(escaped))
 			if len(escaped2) > 2000:
 				await ctx.send(file=discord.File(io.StringIO(escaped), page.title + '.md'))
 			await ctx.send(escaped2)
