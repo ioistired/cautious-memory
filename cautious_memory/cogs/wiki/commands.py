@@ -16,6 +16,7 @@
 import datetime
 import difflib
 import io
+import re
 import typing
 
 from ben_cogs.misc import natural_time
@@ -139,6 +140,8 @@ class Wiki(commands.Cog):
 
 		await ctx.send(embed=e)
 
+	emoji_escape_regex = re.compile(r'<a?(:\w+:)\d+>', re.ASCII)
+
 	@commands.command()
 	async def raw(self, ctx, *, title: clean_content):
 		"""Shows the raw contents of a page.
@@ -149,7 +152,19 @@ class Wiki(commands.Cog):
 			set_connection(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
-		await ctx.send(discord.utils.escape_markdown(page.content).replace('<', r'\<'))
+
+		# replace emojis with their names for mobile users, since on android at least, copying a message
+		# with emojis in it copies just the name, not the name and colons
+		# we also don't want the user to see the raw <:name:1234> form because they can't send that directly
+		escaped = self.emoji_escape_regex.sub(r'\1', page.content)
+		if len(escaped) > 2000:
+			# in this case we don't want to send the fully escaped version
+			# since there is no markdown in a plaintext file
+			await ctx.send(discord.File(io.StringIO(escaped), page.title + '.md'))
+		else:
+			escaped2 = discord.utils.escape_markdown(escaped)
+			if len(escaped2) > 2000:
+				await ctx.send(file=discord.File(io.StringIO(escaped), page.title + '.md'))
 
 	@commands.command()
 	async def altraw(self, ctx, *, title: clean_content):
@@ -161,7 +176,13 @@ class Wiki(commands.Cog):
 			set_connection(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
-		await ctx.send(utils.code_block(utils.escape_code_blocks(page.content)))
+
+		emoji_escaped = self.emoji_escape_regex.sub(r'\1', page.content)
+		code_blocked = utils.code_block(utils.escape_code_blocks(emoji_escaped))
+		if len(code_blocked) > 2000:
+			await ctx.send(file=discord.File(io.StringIO(emoji_escaped), page.title + '.md'))
+		else:
+			await ctx.send(code_blocked)
 
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
