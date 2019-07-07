@@ -165,6 +165,7 @@ class Wiki(commands.Cog):
 			escaped2 = discord.utils.escape_markdown(escaped)
 			if len(escaped2) > 2000:
 				await ctx.send(file=discord.File(io.StringIO(escaped), page.title + '.md'))
+			await ctx.send(escaped2)
 
 	@commands.command()
 	async def altraw(self, ctx, *, title: clean_content):
