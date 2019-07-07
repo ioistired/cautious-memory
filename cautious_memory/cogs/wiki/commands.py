@@ -56,7 +56,7 @@ class Wiki(commands.Cog):
 	def cog_check(self, ctx):
 		return bool(ctx.guild)
 
-	@commands.command(aliases=['wiki'])
+	@commands.command(aliases=['view'])
 	async def show(self, ctx, *, title: clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
