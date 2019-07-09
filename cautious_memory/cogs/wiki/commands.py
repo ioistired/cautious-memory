@@ -245,8 +245,10 @@ class Wiki(commands.Cog):
 		"""Edits an existing wiki page.
 		If the title has spaces, you must surround it in quotes.
 		"""
-		await self.db.revise_page(ctx.author, title, content)
+		original_title = await self.db.revise_page(ctx.author, title, content)
 		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		if original_title is not None:
+			await ctx.send(f'Page “{original_title}” edited successfully.')
 
 	@commands.command(aliases=['remove', 'rm', 'del'])
 	async def delete(self, ctx, *, title: clean_content):
@@ -275,7 +277,7 @@ class Wiki(commands.Cog):
 		"""
 		new_name = new_name.strip()
 		await self.db.alias_page(ctx.author, new_name, old_name)
-		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” succesfully created.')
+		await ctx.send(f'Page alias “{new_name}” that points to “{old_name}” successfully created.')
 
 	@commands.command(ignore_extra=False)
 	async def ln(self, ctx, target: clean_content, link_name: clean_content):

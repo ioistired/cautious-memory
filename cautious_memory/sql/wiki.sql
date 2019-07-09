@@ -14,6 +14,20 @@ WHERE
 	AND
 	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
 
+-- :name get_page_basic
+-- params: guild_id_title
+-- for when you dont't need the revisions but still need to resolve aliases
+SELECT
+	pages.page_id, created, pages.title AS original,
+	CASE WHEN aliases.title IS NOT NULL AND lower(aliases.title) = lower($2) THEN aliases.title ELSE NULL END AS alias
+FROM
+	aliases
+	RIGHT JOIN pages USING (page_id)
+WHERE
+	pages.guild = $1
+	AND
+	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+
 -- :name get_page_no_alias
 -- params: guild_id, title
 SELECT title AS target, NULL AS alias

@@ -171,20 +171,23 @@ class WikiDatabase(commands.Cog):
 				raise errors.PageExistsError
 
 	@optional_connection
-	async def revise_page(self, member, title, new_content):
+	async def revise_page(self, member, title, new_content) -> typing.Optional[str]:
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.edit, title)
 
-			page_id = await connection().fetchval(self.queries.get_page_id, member.guild.id, title)
-			if page_id is None:
+			page = await connection().fetchrow(self.queries.get_page_basic, member.guild.id, title)
+			if page is None:
 				raise errors.PageNotFoundError(title)
 
 			try:
-				await connection().execute(self.queries.create_revision, page_id, member.id, new_content)
+				await connection().execute(self.queries.create_revision, page['page_id'], member.id, new_content)
 			except asyncpg.StringDataRightTruncationError as exc:
 				# XXX dumb way to do it but it's the only way i've got
 				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
 				raise errors.PageContentTooLongError(title, len(new_content), limit)
+
+			if page['alias']:
+				return page['original']
 
 	@optional_connection
 	async def rename_page(self, member, title, new_title):
