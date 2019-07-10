@@ -45,7 +45,7 @@ WHERE aliases.guild = $1 AND lower(aliases.title) = lower($2)
 -- :name delete_page
 -- params: guild_id, title
 DELETE FROM pages
-WHERE guild = $1 AND lower(title) = $2
+WHERE guild = $1 AND lower(title) = lower($2)
 
 -- :name delete_alias
 -- params: guild_id, title
