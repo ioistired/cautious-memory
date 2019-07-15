@@ -122,15 +122,20 @@ class Wiki(commands.Cog):
 
 	async def page_stats(self, ctx, title):
 		cutoff = datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
+
 		e = discord.Embed(title=f'Stats for “{title}”')
 		async with self.bot.pool.acquire() as conn:
 			connection.set(conn)
-			await self.db.check_permissions(ctx.author, Permissions.view, title)
-			# top editors is first so that it can detect PageNotFound
+			page = await self.db.get_page(ctx.author, title, partial=True)
+			if page.alias:  # TODO try and defer this HTTP call till after conn is closed
+				await ctx.send(f'That page is an alias. Try {ctx.prefix}{ctx.invoked_with} {page.original}.')
+				return
+
 			top_editors = await self.db.top_page_editors(ctx.guild.id, title)
 			revisions_count = await self.db.page_revisions_count(ctx.guild.id, title)
 			usage_count = await self.db.page_uses(ctx.guild.id, title, cutoff=cutoff)
 
+		e = discord.Embed(title=f'Stats for {page.original}')
 		e.description = f'{revisions_count} all time revisions, {usage_count} recent uses'
 
 		first_place = ord('🥇')

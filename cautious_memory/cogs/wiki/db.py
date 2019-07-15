@@ -35,9 +35,10 @@ class WikiDatabase(commands.Cog):
 			self.queries = load_sql(f)
 
 	@optional_connection
-	async def get_page(self, member, title):
+	async def get_page(self, member, title, *, partial=False):
 		await self.check_permissions(member, Permissions.view, title)
-		row = await connection().fetchrow(self.queries.get_page, member.guild.id, title)
+		query = self.queries.get_page_basic if partial else self.queries.get_page
+		row = await connection().fetchrow(query, member.guild.id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
