@@ -193,6 +193,17 @@ class Wiki(commands.Cog):
 		else:
 			await ctx.send(code_blocked)
 
+	@commands.command()
+	async def fileraw(self, ctx, *, title: clean_content):
+		"""Shows the raw contents of a page in a file attachment."""
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			connection.set(conn)
+			page = await self.db.get_page(ctx.author, title)
+			await self.db.log_page_use(ctx.guild.id, title)
+
+		escaped = self.emoji_escape_regex.sub(r'\1', page.content)
+		await ctx.send(file=discord.File(io.StringIO(escaped), page.title + '.md'))
+
 	@commands.command(aliases=['pages'])
 	async def list(self, ctx):
 		"""Shows you a list of all the pages on this server."""
