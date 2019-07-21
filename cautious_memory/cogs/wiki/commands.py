@@ -410,7 +410,7 @@ class Wiki(commands.Cog):
 
 	@classmethod
 	def format_member(cls, guild, member_id):
-		return guild.get_member(member_id) or f'unknown user with ID {member.id}'
+		return guild.get_member(member_id) or f'unknown user with ID {member_id}'
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))
