@@ -150,6 +150,9 @@ class WikiDatabase(commands.Cog):
 	async def create_page(self, member, title, content):
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
+			if await connection().fetchrow(self.queries.get_alias, member.guild.id, title):
+				raise errors.PageExistsError
+
 			try:
 				page_id = await connection().fetchval(self.queries.create_page, member.guild.id, title)
 			except asyncpg.UniqueViolationError:

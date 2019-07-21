@@ -27,7 +27,7 @@ class PageError(CautiousMemoryError, UserInputError):
 
 class PageExistsError(PageError):
 	def __init__(self):
-		super().__init__(f'A page with that name already exists.')
+		super().__init__(f'A page or alias with that name already exists.')
 
 class PageNotFoundError(PageError):
 	def __init__(self, name):

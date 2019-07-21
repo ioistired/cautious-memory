@@ -78,7 +78,7 @@ class Wiki(commands.Cog):
 
 	@commands.command()
 	async def stats(self, ctx, *, title: clean_content = None):
-		"""Shows server-wide statistics on page usage and revision."""
+		"""Shows server-wide or per-page statistics on page usage and revision."""
 		if title is None:
 			await self.guild_stats(ctx)
 		else:
@@ -317,9 +317,17 @@ class Wiki(commands.Cog):
 	async def history(self, ctx, *, title: clean_content):
 		"""Shows the revisions of a particular page"""
 
-		entries = [
-			self.revision_summary(ctx.guild, revision)
-			async for revision in self.db.get_page_revisions(ctx.author, title)]
+		async with self.bot.pool.acquire() as conn:
+			connection.set(conn)
+			page = await self.db.resolve_page(ctx.author, title)
+			if page.alias:
+				await ctx.send(f'“{page.alias}” is an alias. Try {ctx.prefix}{ctx.invoked_with} {page.target}.')
+				return
+
+			entries = [
+				self.revision_summary(ctx.guild, revision)
+				async for revision in self.db.get_page_revisions(ctx.author, title)]
+
 		if not entries:
 			raise errors.PageNotFoundError(title)
 
