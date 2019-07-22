@@ -57,7 +57,6 @@ def load_sql(fp):
 		match = re.match(r'\s*--\s*:name\s*(\S+).*?$', line)
 		if match:
 			current_tag = match[1]
-			continue
 		if current_tag:
 			queries.setdefault(current_tag, []).append(line)
 
