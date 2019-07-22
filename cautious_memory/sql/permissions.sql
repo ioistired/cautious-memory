@@ -1,5 +1,5 @@
 -- :name permissions_for
--- params: page_id, member_id, role_ids, Permissions.default.value
+-- params: page_id, role_ids, Permissions.default.value
 -- role_ids must include member_id for member specific page overwrites, and the first element must be the guild ID
 WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($2::BIGINT[])[1])
 SELECT
