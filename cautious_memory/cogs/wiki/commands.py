@@ -19,7 +19,7 @@ import io
 import re
 import typing
 
-from ben_cogs.misc import natural_time
+from ben_cogs.misc import absolute_natural_timedelta
 import discord
 from discord.ext import commands
 
@@ -229,7 +229,7 @@ class Wiki(commands.Cog):
 			async for revision in self.db.get_recent_revisions(ctx.author, cutoff)]
 
 		if not entries:
-			delta = natural_time(cutoff_delta.total_seconds())
+			delta = absolute_natural_timedelta(cutoff_delta.total_seconds())
 			await ctx.send(f'No pages have been created or revised within the past {delta}.')
 			return
 
