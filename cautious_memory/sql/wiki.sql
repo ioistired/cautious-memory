@@ -16,7 +16,7 @@ WHERE
 
 -- :name get_page_basic
 -- params: guild_id_title
--- for when you dont't need the revisions but still need to resolve aliases
+-- for when you don't need the revisions but still need to resolve aliases
 SELECT
 	pages.page_id, created, pages.title AS original,
 	CASE WHEN aliases.title IS NOT NULL AND lower(aliases.title) = lower($2) THEN aliases.title ELSE NULL END AS alias
