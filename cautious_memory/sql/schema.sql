@@ -75,7 +75,14 @@ CREATE TABLE page_usage_history(
 
 CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 
---- PERMISSIONS
+--- WATCH LISTS
+
+CREATE TABLE page_subscribers(
+	page_id BIGINT REFERENCES (pages) ON DELETE CASCADE,
+	user_id BIGINT NOT NULL,
+	PRIMARY KEY (page_id, user_id));
+
+--- PERMISSIONS
 
 CREATE TABLE role_permissions(
 	-- these are always roles, but the column is named "entity" to ease joining with page_permissions
