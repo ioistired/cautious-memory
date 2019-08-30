@@ -35,6 +35,15 @@ CREATE TABLE revisions(
 
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions DEFERRABLE INITIALLY DEFERRED;
 
+CREATE FUNCTION notify_page_edit() RETURNS TRIGGER AS $$ BEGIN
+	PERFORM * FROM pg_notify('page_edit', new.revision_id::text);
+	RETURN new; END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER notify_page_edit
+	AFTER INSERT ON revisions
+	FOR EACH ROW
+	EXECUTE PROCEDURE notify_page_edit();
+
 CREATE TABLE aliases(
 	title TEXT,
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,

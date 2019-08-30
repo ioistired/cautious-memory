@@ -22,6 +22,7 @@ import os.path
 import re
 import traceback
 import uuid
+import warnings
 
 import asyncpg
 import discord
@@ -41,6 +42,12 @@ SQL_DIR = os.path.join(BASE_DIR, 'sql')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('bot')
+
+# XXX figure out how to remove the listeners instead of ignoring the warnings
+warnings.filterwarnings(
+	category=asyncpg.InterfaceWarning,
+	message=r'.* is being released to the pool but has \d+ active notification listener',
+	action='ignore')
 
 class CautiousMemory(commands.AutoShardedBot):
 	def __init__(self, *args, **kwargs):
@@ -176,8 +183,13 @@ class CautiousMemory(commands.AutoShardedBot):
 		await super().logout()
 
 	async def init_db(self):
+		async def init(conn):
+			def on_page_edit(connection, pid, channel, revision_id):
+				# convert an asyncpg event into a discord event
+				self.dispatch('page_edit', int(revision_id))
+			await conn.add_listener('page_edit', on_page_edit)
 		credentials = self.config['database']
-		self.pool = await asyncpg.create_pool(**credentials)
+		self.pool = await asyncpg.create_pool(**credentials, init=init)
 
 	def _load_extensions(self):
 		for extension in (
