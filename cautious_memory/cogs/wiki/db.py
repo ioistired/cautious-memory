@@ -16,52 +16,52 @@
 import datetime
 import enum
 import operator
-import os.path
 import typing
 
 import asyncpg
 import discord
 from discord.ext import commands
+from querypp import AttrDict, load_sql
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import attrdict, connection, errors, load_sql, optional_connection
+from ...utils import connection, errors, optional_connection
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.permissions_db = self.bot.cogs['PermissionsDatabase']
-		with open(os.path.join(SQL_DIR, 'wiki.sql')) as f:
+		with (SQL_DIR / 'wiki.sql').open() as f:
 			self.queries = load_sql(f)
 
 	@optional_connection
 	async def get_page(self, member, title, *, partial=False):
 		await self.check_permissions(member, Permissions.view, title)
-		query = self.queries.get_page_basic if partial else self.queries.get_page
+		query = self.queries.get_page_basic() if partial else self.queries.get_page()
 		row = await connection().fetchrow(query, member.guild.id, title)
 		if row is None:
 			raise errors.PageNotFoundError(title)
 
-		return attrdict(row)
+		return AttrDict(row)
 
 	@optional_connection
 	async def get_page_revisions(self, member, title):
 		await self.check_permissions(member, Permissions.view, title)
-		async for row in self.cursor(self.queries.get_page_revisions, member.guild.id, title):
+		async for row in self.cursor(self.queries.get_page_revisions(), member.guild.id, title):
 			yield row
 
 	@optional_connection
 	async def get_all_pages(self, member):
 		"""return an async iterator over all pages for the given guild"""
 		await self.check_permissions(member, Permissions.view)
-		async for row in self.cursor(self.queries.get_all_pages, member.guild.id):
+		async for row in self.cursor(self.queries.get_all_pages(), member.guild.id):
 			yield row
 
 	@optional_connection
 	async def get_recent_revisions(self, member, cutoff: datetime.datetime):
 		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
 		await self.check_permissions(member, Permissions.view)
-		async for row in self.cursor(self.queries.get_recent_revisions, member.guild.id, cutoff):
+		async for row in self.cursor(self.queries.get_recent_revisions(), member.guild.id, cutoff):
 			yield row
 
 	@optional_connection
@@ -72,13 +72,13 @@ class WikiDatabase(commands.Cog):
 		# page it is an alias to. Consider allowing anyone to resolve an alias, or only denying those who
 		# were globally denied view permissions.
 		await self.check_permissions(member, Permissions.view, title)
-		row = await connection().fetchrow(self.queries.get_alias, member.guild.id, title)
+		row = await connection().fetchrow(self.queries.get_alias(), member.guild.id, title)
 		if row is not None:
-			return attrdict(row)
+			return AttrDict(row)
 
-		row = await connection().fetchrow(self.queries.get_page_no_alias, member.guild.id, title)
+		row = await connection().fetchrow(self.queries.get_page_no_alias(), member.guild.id, title)
 		if row is not None:
-			return attrdict(row)
+			return AttrDict(row)
 
 		raise errors.PageNotFoundError(title)
 
@@ -86,7 +86,7 @@ class WikiDatabase(commands.Cog):
 	async def search_pages(self, member, query):
 		"""return an async iterator over all pages whose title is similar to query"""
 		await self.check_permissions(member, Permissions.view)
-		async for row in self.cursor(self.queries.search_pages, member.guild.id, query):
+		async for row in self.cursor(self.queries.search_pages(), member.guild.id, query):
 			yield row
 
 	@optional_connection
@@ -94,15 +94,15 @@ class WikiDatabase(commands.Cog):
 		"""return an async iterator over all rows matched by query and args. Lazy equivalent to fetch()"""
 		async with connection().transaction():
 			async for row in connection().cursor(query, *args):
-				yield attrdict(row)
+				yield AttrDict(row)
 
 	@optional_connection
 	async def get_individual_revisions(self, guild_id, revision_ids):
 		"""return a list of page revisions for the given guild.
 		the revisions are sorted by their revision ID.
 		"""
-		results = list(map(attrdict, await connection().fetch(
-			self.queries.get_individual_revisions,
+		results = list(map(AttrDict, await connection().fetch(
+			self.queries.get_individual_revisions(),
 			guild_id, revision_ids)))
 
 		if len(results) != len(set(revision_ids)):
@@ -111,22 +111,22 @@ class WikiDatabase(commands.Cog):
 		return results
 
 	async def page_count(self, guild_id, *, connection=None):
-		return await (connection or self.bot.pool).fetchval(self.queries.page_count, guild_id)
+		return await (connection or self.bot.pool).fetchval(self.queries.page_count(), guild_id)
 
 	async def revisions_count(self, guild_id, *, connection=None):
-		return await (connection or self.bot.pool).fetchval(self.queries.revisions_count, guild_id)
+		return await (connection or self.bot.pool).fetchval(self.queries.revisions_count(), guild_id)
 
 	async def page_uses(self, guild_id, title, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return await (connection or self.bot.pool).fetchval(self.queries.page_uses, guild_id, title, cutoff)
+		return await (connection or self.bot.pool).fetchval(self.queries.page_uses(), guild_id, title, cutoff)
 
 	async def page_revisions_count(self, guild_id, title, *, connection=None):
-		return await (connection or self.bot.pool).fetchval(self.queries.page_revisions_count, guild_id, title)
+		return await (connection or self.bot.pool).fetchval(self.queries.page_revisions_count(), guild_id, title)
 
 	async def top_page_editors(self, guild_id, title, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		editors = list(map(attrdict, await (connection or self.bot.pool).fetch(
-			self.queries.top_page_editors,
+		editors = list(map(AttrDict, await (connection or self.bot.pool).fetch(
+			self.queries.top_page_editors(),
 			guild_id, title, cutoff)))
 		if not editors:
 			raise errors.PageNotFoundError(title)
@@ -134,31 +134,31 @@ class WikiDatabase(commands.Cog):
 
 	async def total_page_uses(self, guild_id, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return await (connection or self.bot.pool).fetchval(self.queries.total_page_uses, guild_id, cutoff)
+		return await (connection or self.bot.pool).fetchval(self.queries.total_page_uses(), guild_id, cutoff)
 
 	async def top_pages(self, guild_id, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return list(map(attrdict, await (connection or self.bot.pool).fetch(self.queries.top_pages, guild_id, cutoff)))
+		return list(map(AttrDict, await (connection or self.bot.pool).fetch(self.queries.top_pages(), guild_id, cutoff)))
 
 	async def top_editors(self, guild_id, *, cutoff=None, connection=None):
 		cutoff = cutoff or datetime.datetime.utcnow() - datetime.timedelta(weeks=4)
-		return list(map(attrdict, await (connection or self.bot.pool).fetch(
-			self.queries.top_editors,
+		return list(map(AttrDict, await (connection or self.bot.pool).fetch(
+			self.queries.top_editors(),
 			guild_id, cutoff)))
 
 	@optional_connection
 	async def create_page(self, member, title, content):
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
-			if await connection().fetchrow(self.queries.get_alias, member.guild.id, title):
+			if await connection().fetchrow(self.queries.get_alias(), member.guild.id, title):
 				raise errors.PageExistsError
 
 			try:
-				page_id = await connection().fetchval(self.queries.create_page, member.guild.id, title)
+				page_id = await connection().fetchval(self.queries.create_page(), member.guild.id, title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
-			await connection().execute(self.queries.create_first_revision, page_id, member.id, content, title)
+			await connection().execute(self.queries.create_first_revision(), page_id, member.id, content, title)
 
 	@optional_connection
 	async def alias_page(self, member, alias_title, target_title):
@@ -167,7 +167,7 @@ class WikiDatabase(commands.Cog):
 			await self.check_permissions(member, Permissions.view, target_title)
 
 			try:
-				await connection().execute(self.queries.alias_page, member.guild.id, alias_title, target_title)
+				await connection().execute(self.queries.alias_page(), member.guild.id, alias_title, target_title)
 			except asyncpg.NotNullViolationError:
 				# the CTE returned no rows
 				raise errors.PageNotFoundError(target_title)
@@ -179,12 +179,12 @@ class WikiDatabase(commands.Cog):
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.edit, title)
 
-			page = await connection().fetchrow(self.queries.get_page_basic, member.guild.id, title)
+			page = await connection().fetchrow(self.queries.get_page_basic(), member.guild.id, title)
 			if page is None:
 				raise errors.PageNotFoundError(title)
 
 			try:
-				await connection().execute(self.queries.create_revision, page['page_id'], member.id, new_content)
+				await connection().execute(self.queries.create_revision(), page['page_id'], member.id, new_content)
 			except asyncpg.StringDataRightTruncationError as exc:
 				# XXX dumb way to do it but it's the only way i've got
 				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
@@ -197,14 +197,14 @@ class WikiDatabase(commands.Cog):
 	async def rename_page(self, member, title, new_title):
 		async with connection().transaction():
 			try:
-				page_id = await connection().fetchval(self.queries.rename_page, member.guild.id, title, new_title)
+				page_id = await connection().fetchval(self.queries.rename_page(), member.guild.id, title, new_title)
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await connection().execute(self.queries.log_page_rename, page_id, member.id, new_title)
+			await connection().execute(self.queries.log_page_rename(), page_id, member.id, new_title)
 
 	@optional_connection
 	async def delete_page(self, member, title) -> bool:
@@ -221,13 +221,13 @@ class WikiDatabase(commands.Cog):
 				# deleting an alias is a prerequisite to recreating it with a different title
 				# and deleting an alias is nowhere near as destructive as deleting a page
 				await self.check_permissions(member, Permissions.edit)
-				command_tag = await connection().execute(self.queries.delete_alias, member.guild.id, title)
+				command_tag = await connection().execute(self.queries.delete_alias(), member.guild.id, title)
 				if command_tag.split()[-1] == '0':
 					raise RuntimeError('page is supposed to be an alias but delete_alias did not delete it', title)
 				return True
 
 			await self.check_permissions(member, Permissions.delete, title)
-			command_tag = await connection().execute(self.queries.delete_page, member.guild.id, title)
+			command_tag = await connection().execute(self.queries.delete_page(), member.guild.id, title)
 			if command_tag.split()[-1] == '0':
 				raise RuntimeError('page is not supposed to be an alias but delete_page did not delete it', title)
 
@@ -247,7 +247,7 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def log_page_use(self, guild_id, title):
-		await connection().execute(self.queries.log_page_use, guild_id, title)
+		await connection().execute(self.queries.log_page_use(), guild_id, title)
 
 	## Permissions
 

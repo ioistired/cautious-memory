@@ -18,11 +18,11 @@
 import asyncio
 import contextlib
 import logging
-import os.path
 import re
 import traceback
 import uuid
 import warnings
+from pathlib import Path
 
 import asyncpg
 import discord
@@ -37,8 +37,8 @@ else:
 
 from . import utils
 
-BASE_DIR = os.path.dirname(__file__)
-SQL_DIR = os.path.join(BASE_DIR, 'sql')
+BASE_DIR = Path(__file__).parent
+SQL_DIR = BASE_DIR / 'sql'
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('bot')

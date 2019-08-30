@@ -14,16 +14,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import enum
-import os.path
 import typing
 
 import asyncpg
 import discord
 from ben_cogs.misc import human_join
 from discord.ext import commands
+from querypp import load_sql
 
 from ... import SQL_DIR
-from ...utils import connection, errors, load_sql, optional_connection
+from ...utils import connection, errors, optional_connection
 
 class Permissions(enum.Flag):
 	# this class is the single source of truth for the permissions values
@@ -63,24 +63,24 @@ del __new__
 class PermissionsDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		with open(os.path.join(SQL_DIR, 'permissions.sql')) as f:
+		with (SQL_DIR / 'permissions.sql').open() as f:
 			self.queries = load_sql(f)
 
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
 		async with connection().transaction():
-			page_id = await connection().fetchval(self.queries.get_page_id, member.guild.id, title)
+			page_id = await connection().fetchval(self.queries.get_page_id(), member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 			perms = await self.bot.pool.fetchval(
-				self.queries.permissions_for,
+				self.queries.permissions_for(),
 				page_id, roles, Permissions.default.value)
 
 		return Permissions(perms)
 
 	async def member_permissions(self, member: discord.Member):
 		roles = [role.id for role in member.roles]
-		perms = await self.bot.pool.fetchval(self.queries.member_permissions, roles, Permissions.default.value)
+		perms = await self.bot.pool.fetchval(self.queries.member_permissions(), roles, Permissions.default.value)
 		return Permissions(perms)
 
 	@optional_connection
@@ -90,16 +90,16 @@ class PermissionsDatabase(commands.Cog):
 		manager_roles = [
 			member.guild.get_role(row[0])
 			for row in await connection().fetch(
-				self.queries.manage_permissions_roles,
+				self.queries.manage_permissions_roles(),
 				member_roles, Permissions.manage_permissions.value)]
 		manager_roles.sort()
 		return manager_roles[-1] if manager_roles else None
 
 	async def get_role_permissions(self, role: discord.Role):
-		return Permissions(await self.bot.pool.fetchval(self.queries.get_role_permissions, role.id))
+		return Permissions(await self.bot.pool.fetchval(self.queries.get_role_permissions(), role.id))
 
 	async def set_role_permissions(self, role: discord.Role, perms: Permissions):
-		await self.bot.pool.execute(self.queries.set_role_permissions, role.id, perms.value)
+		await self.bot.pool.execute(self.queries.set_role_permissions(), role.id, perms.value)
 
 	@optional_connection
 	async def set_default_permissions(self, guild_id):
@@ -107,7 +107,7 @@ class PermissionsDatabase(commands.Cog):
 		This should be called whenever role permissions are updated.
 		"""
 		await connection().execute(
-			self.queries.set_default_permissions,
+			self.queries.set_default_permissions(),
 			guild_id, Permissions.default.value)
 
 	# no unset_role_permissions because unset means to give the default permissions
@@ -119,7 +119,7 @@ class PermissionsDatabase(commands.Cog):
 		if role.is_default:
 			await self.set_default_permissions(role.guild.id)
 		return Permissions(await connection().fetchval(
-			self.queries.allow_role_permissions,
+			self.queries.allow_role_permissions(),
 			role.id, new_perms.value))
 
 	@optional_connection
@@ -128,18 +128,18 @@ class PermissionsDatabase(commands.Cog):
 		await self.check_permissions(member, role)
 		if role.is_default:
 			await self.set_default_permissions(role.guild.id)
-		return Permissions(await connection().fetchval(self.queries.deny_role_permissions, role.id, perms.value))
+		return Permissions(await connection().fetchval(self.queries.deny_role_permissions(), role.id, perms.value))
 
 	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page_id = await conn.fetchval(self.queries.get_page_id, guild_id, title)
+			page_id = await conn.fetchval(self.queries.get_page_id(), guild_id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
 			return {
 				entity: (Permissions(allow), Permissions(deny))
-				for entity, allow, deny in await conn.fetch(self.queries.get_page_overwrites, page_id)}
+				for entity, allow, deny in await conn.fetch(self.queries.get_page_overwrites(), page_id)}
 
 	async def set_page_overwrites(
 		self,
@@ -157,7 +157,7 @@ class PermissionsDatabase(commands.Cog):
 
 		try:
 			await self.bot.pool.execute(
-				self.queries.set_page_overwrites,
+				self.queries.set_page_overwrites(),
 				guild_id, title, entity_id, allow_perms.value, deny_perms.value)
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
@@ -165,7 +165,7 @@ class PermissionsDatabase(commands.Cog):
 
 	async def unset_page_overwrites(self, *, guild_id, title, entity_id):
 		"""remove all of the allowed and denied overwrites for a page"""
-		command_tag = await self.bot.pool.execute(self.queries.unset_page_overwrites, guild_id, title, entity_id)
+		command_tag = await self.bot.pool.execute(self.queries.unset_page_overwrites(), guild_id, title, entity_id)
 		count = int(command_tag.split()[-1])
 		if not count:
 			raise errors.PageNotFoundError(title)
@@ -189,7 +189,7 @@ class PermissionsDatabase(commands.Cog):
 
 		try:
 			return tuple(map(Permissions, await connection().fetchrow(
-				self.queries.add_page_permissions,
+				self.queries.add_page_permissions(),
 				member.guild.id, title, entity_id, new_allow_perms.value, new_deny_perms.value)))
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
@@ -203,7 +203,7 @@ class PermissionsDatabase(commands.Cog):
 		"""
 		await self.check_permissions_for(member, title)
 		return tuple(map(Permissions, await connection().fetchrow(
-			self.queries.unset_page_permissions,
+			self.queries.unset_page_permissions(),
 			member.guild.id, title, entity_id, perms.value) or (None, None)))
 
 	@optional_connection
