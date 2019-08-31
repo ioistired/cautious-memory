@@ -19,7 +19,6 @@ import asyncio
 import contextlib
 import logging
 import traceback
-import warnings
 from pathlib import Path
 
 import asyncpg
@@ -41,12 +40,6 @@ SQL_DIR = BASE_DIR / 'sql'
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('bot')
-
-# XXX figure out how to remove the listeners instead of ignoring the warnings
-warnings.filterwarnings(
-	category=asyncpg.InterfaceWarning,
-	message=r'.* is being released to the pool but has \d+ active notification listener',
-	action='ignore')
 
 class CautiousMemory(BenCogsBot):
 	def __init__(self, *args, **kwargs):
@@ -72,13 +65,20 @@ class CautiousMemory(BenCogsBot):
 	### Init / Shutdown
 
 	async def init_db(self):
-		async def init(conn):
-			def on_page_edit(connection, pid, channel, revision_id):
-				# convert an asyncpg event into a discord event
-				self.dispatch('page_edit', int(revision_id))
-			await conn.add_listener('page_edit', on_page_edit)
 		credentials = self.config['database']
-		self.pool = await asyncpg.create_pool(**credentials, init=init)
+		self.pool = await asyncpg.create_pool(**credentials)
+
+		self.listener_conn = await self.pool.acquire()
+		def on_page_edit(connection, pid, channel, revision_id):
+			# convert an asyncpg event into a discord event
+			self.dispatch('page_edit', int(revision_id))
+		self.listener_conn_callback = on_page_edit
+		await self.listener_conn.add_listener('page_edit', on_page_edit)
+
+	async def close(self):
+		await self.listener_conn.remove_listener('page_edit', self.listener_conn_callback)
+		await self.listener_conn.close()
+		await super().close()
 
 	startup_extensions = (
 		'cautious_memory.cogs.permissions.db',
