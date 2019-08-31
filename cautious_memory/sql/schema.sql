@@ -78,7 +78,7 @@ CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 --- WATCH LISTS
 
 CREATE TABLE page_subscribers(
-	page_id BIGINT REFERENCES (pages) ON DELETE CASCADE,
+	page_id BIGINT REFERENCES pages ON DELETE CASCADE,
 	user_id BIGINT NOT NULL,
 	PRIMARY KEY (page_id, user_id));
 
