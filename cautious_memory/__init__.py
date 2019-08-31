@@ -47,9 +47,7 @@ class CautiousMemory(BenCogsBot):
 
 	def process_config(self):
 		self.owners = set(self.config.get('extra_owners', []))
-
-		self.config['success_emoji'] = utils.convert_emoji(self.config['success_emoji'])
-		self.config['failure_emoji'] = utils.convert_emoji(self.config['failure_emoji'])
+		self.config['success_emojis'] = {False: self.config['failure_emoji'], True: self.config['success_emoji']}
 
 		super().process_config()
 
