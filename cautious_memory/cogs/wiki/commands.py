@@ -254,7 +254,7 @@ class Wiki(commands.Cog):
 		# hopefully prevent someone creating a wiki page like " a" that can't be retrieved
 		title = title.strip()
 		await self.db.create_page(ctx.author, title, content)
-		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 	@commands.command(aliases=['revise'])
 	async def edit(self, ctx, title: clean_content, *, content: clean_content):
@@ -262,7 +262,7 @@ class Wiki(commands.Cog):
 		If the title has spaces, you must surround it in quotes.
 		"""
 		original_title = await self.db.revise_page(ctx.author, title, content)
-		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 		if original_title is not None:
 			await ctx.send(f'Page “{original_title}” edited successfully.')
 
@@ -274,9 +274,9 @@ class Wiki(commands.Cog):
 		"""
 		was_alias = await self.db.delete_page(ctx.author, title)
 		if was_alias:
-			await ctx.send(f'{self.bot.config["success_emoji"]} Page alias successfully deleted.')
+			await ctx.send(f'{self.bot.config["success_emojis"][True]} Page alias successfully deleted.')
 		else:
-			await ctx.send(f'{self.bot.config["success_emoji"]} Page and all revisions and aliases successfully deleted.')
+			await ctx.send(f'{self.bot.config["success_emojis"][True]} Page and all revisions and aliases successfully deleted.')
 
 	@commands.command(ignore_extra=False)
 	async def alias(self, ctx, new_name: clean_content, old_name: clean_content):
@@ -311,7 +311,7 @@ class Wiki(commands.Cog):
 		"""
 		new_title = new_title.strip()
 		await self.db.rename_page(ctx.author, title, new_title)
-		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 	@commands.command(aliases=['revisions'])
 	async def history(self, ctx, *, title: clean_content):
@@ -354,7 +354,7 @@ class Wiki(commands.Cog):
 
 			await self.db.revise_page(ctx.author, title, revision.content)
 
-		await ctx.message.add_reaction(self.bot.config['success_emoji'])
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 	@commands.command(aliases=['diff'], usage='<revision 1> <revision 2>')
 	async def compare(self, ctx, revision_id_1: int, revision_id_2: int):
