@@ -18,15 +18,12 @@
 import asyncio
 import contextlib
 import logging
-import re
 import traceback
-import uuid
 import warnings
 from pathlib import Path
 
 import asyncpg
 import discord
-from discord.ext import commands
 import json5
 try:
 	import uvloop
@@ -34,6 +31,8 @@ except ImportError:
 	pass  # Windows
 else:
 	asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+from ben_cogs.bot import BenCogsBot
+from discord.ext import commands
 
 from . import utils
 
@@ -49,18 +48,9 @@ warnings.filterwarnings(
 	message=r'.* is being released to the pool but has \d+ active notification listener',
 	action='ignore')
 
-class CautiousMemory(commands.AutoShardedBot):
+class CautiousMemory(BenCogsBot):
 	def __init__(self, *args, **kwargs):
-		self.config = kwargs.pop('config')
-		self.process_config()
-		self._fallback_prefix = str(uuid.uuid4())
-
-		super().__init__(
-			command_prefix=self.get_prefix_,
-			description=self.config.get('description'),
-			help_command=commands.MinimalHelpCommand(),
-			activity=self.activity,
-			*args, **kwargs)
+		super().__init__(*args, setup_db=True, **kwargs)
 
 	def process_config(self):
 		self.owners = set(self.config.get('extra_owners', []))
@@ -68,119 +58,18 @@ class CautiousMemory(commands.AutoShardedBot):
 		self.config['success_emoji'] = utils.convert_emoji(self.config['success_emoji'])
 		self.config['failure_emoji'] = utils.convert_emoji(self.config['failure_emoji'])
 
-	@property
-	def activity(self):
+		super().process_config()
+
+	def initial_activity(self):
 		prefixes = self.config['prefixes']
 		return discord.Game(name=prefixes[0] + 'help')
 
-	def get_prefix_(self, bot, message):
-		match = self.prefix_re.search(message.content)
-
-		if match is None:
-			# Callable prefixes must always return at least one prefix,
-			# but no prefix was found in the message,
-			# so we still have to return *something*.
-			# Use a UUID because it's practically guaranteed not to be in the message.
-			return self._fallback_prefix
-		else:
-			return match[0]
-
-	@property
-	def prefix_re(self):
-		prefixes = self.config['prefixes']
-
-		prefixes = list(prefixes)  # ensure it's not a tuple
-		if self.is_ready():
-			prefixes.extend([f'<@{self.user.id}>', f'<@!{self.user.id}>'])
-
-		prefixes = '|'.join(map(re.escape, prefixes))
-		prefixes = f'(?:{prefixes})'
-
-		return re.compile(f'{prefixes}\\s*', re.IGNORECASE)
-
-	### Events
-
-	async def on_ready(self):
-		separator = '━' * 44
-		logger.info(separator)
-		logger.info('Logged in as: %s', self.user)
-		logger.info('ID: %s', self.user.id)
-		logger.info(separator)
-
-	async def on_message(self, message):
-		if self.should_reply(message):
-			await self.process_commands(message)
-
-	async def process_commands(self, message):
-		# overridden because the default process_commands ignores bots now
-		context = await self.get_context(message)
-		await self.invoke(context)
-
-	# based on https://github.com/Rapptz/RoboDanny/blob/ca75fae7de132e55270e53d89bc19dd2958c2ae0/bot.py#L77-L85
-	async def on_command_error(self, context, error):
-		if isinstance(error, commands.NoPrivateMessage):
-			await context.author.send('This command cannot be used in private messages.')
-		elif isinstance(error, commands.DisabledCommand):
-			message = 'Sorry. This command is disabled and cannot be used.'
-			try:
-				await context.author.send(message)
-			except discord.Forbidden:
-				await context.send(message)
-		elif isinstance(error, commands.NotOwner):
-			logger.error('%s tried to run %s but is not the owner', context.author, context.command.name)
-			await context.message.add_reaction(self.config['failure_emoji'])
-		elif isinstance(error, (commands.UserInputError, commands.CheckFailure)):
-			await context.send(error)
-		elif (
-			isinstance(error, commands.CommandInvokeError)
-			and (not context.cog or type(context.cog).cog_command_error is commands.Cog.cog_command_error)  # not overridden
-			and not hasattr(context.command, 'on_error')
-		):
-			logger.error('"%s" caused an exception <%s>', context.message.content, context.message.jump_url)
-			logger.error(''.join(traceback.format_tb(error.original.__traceback__)))
-			# pylint: disable=logging-format-interpolation
-			logger.error('{0.__class__.__name__}: {0}'.format(error.original))
-
-			await context.send('An internal error occured while trying to run that command.')
-
 	### Utility functions
-
-	def should_reply(self, message):
-		"""return whether the bot should reply to a given message"""
-		return not (
-			message.author == self.user
-			or (message.author.bot and not self._should_reply_to_bot(message)))
-
-	def _should_reply_to_bot(self, message):
-		should_reply = not self.config['ignore_bots'].get('default')
-		overrides = self.config['ignore_bots']['overrides']
-
-		def check_override(location, overrides_key):
-			return location and location.id in overrides[overrides_key]
-
-		if check_override(message.guild, 'guilds') or check_override(message.channel, 'channels'):
-			should_reply = not should_reply
-
-		return should_reply
-
-	async def is_owner(self, user):
-		return user.id in self.owners or await super().is_owner(user)
 
 	async def is_privileged(self, member):
 		return member.guild_permissions.administrator or await self.is_owner(member)
 
 	### Init / Shutdown
-
-	async def start(self):
-		await self.init_db()
-		self._load_extensions()
-
-		await super().start(self.config['tokens'].pop('discord'))
-
-	async def logout(self):
-		with contextlib.suppress(AttributeError):
-			await self.pool.close()
-		await super().logout()
 
 	async def init_db(self):
 		async def init(conn):
@@ -191,19 +80,16 @@ class CautiousMemory(commands.AutoShardedBot):
 		credentials = self.config['database']
 		self.pool = await asyncpg.create_pool(**credentials, init=init)
 
-	def _load_extensions(self):
-		for extension in (
-			'cautious_memory.cogs.permissions.db',
-			'cautious_memory.cogs.permissions.commands',
-			'cautious_memory.cogs.wiki.db',
-			'cautious_memory.cogs.wiki.commands',
-			'cautious_memory.cogs.api',
-			'cautious_memory.cogs.meta',
-			'jishaku',
-			'ben_cogs.misc',
-			'ben_cogs.debug',
-			'ben_cogs.sql',
-			'ben_cogs.stats',
-		):
-			self.load_extension(extension)
-			logger.info('Successfully loaded %s', extension)
+	startup_extensions = (
+		'cautious_memory.cogs.permissions.db',
+		'cautious_memory.cogs.permissions.commands',
+		'cautious_memory.cogs.wiki.db',
+		'cautious_memory.cogs.wiki.commands',
+		'cautious_memory.cogs.api',
+		'cautious_memory.cogs.meta',
+		'jishaku',
+		'ben_cogs.misc',
+		'ben_cogs.debug',
+		'ben_cogs.sql',
+		'ben_cogs.stats',
+	)
