@@ -14,6 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
+import functools
 import inspect
 import math
 import re
@@ -70,12 +71,14 @@ def optional_connection(func):
 				await self.connection.close()
 
 	if inspect.isasyncgenfunction(func):
+		@functools.wraps(func)
 		async def inner(self, *args, **kwargs):
 			async with pool(self.bot.pool) as conn:
 				# this does not handle two-way async gens, but i don't have any of those either
 				async for x in func(self, *args, **kwargs):
 					yield x
 	else:
+		@functools.wraps(func)
 		async def inner(self, *args, **kwargs):
 			async with pool(self.bot.pool) as conn:
 				return await func(self, *args, **kwargs)
