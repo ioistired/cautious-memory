@@ -379,26 +379,28 @@ class Wiki(commands.Cog):
 				return
 			await self.db.check_permissions(ctx.author, Permissions.edit, new.title)
 
-		if new.content is None or old.content is None:
-			return await ctx.send(self.renamed_revision_summary(ctx.guild, new, old_title=old.title))
+		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
+
+	@classmethod
+	def diff(cls, guild, old, new):
+		# wew this was hard to get right
+		if new.old_title != old.title or new.title != old.title:
+			return cls.renamed_revision_summary(guild, new, old_title=old.title)
 
 		if old.page_id != new.page_id:
-			await ctx.send('You can only compare revisions of the same page.')
-			return
+			raise commands.UserInputError('You can only compare revisions of the same page.')
 
 		diff = list(difflib.unified_diff(
 			old.content.splitlines(),
 			new.content.splitlines(),
-			fromfile=self.revision_summary(ctx.guild, old),
-			tofile=self.revision_summary(ctx.guild, new),
+			fromfile=cls.revision_summary(guild, old),
+			tofile=cls.revision_summary(guild, new),
 			lineterm=''))
 
 		if not diff:
-			await ctx.send('These revisions appear to be identical.')
-			return
+			raise commands.UserInputError('These revisions appear to be identical.')
 
-		del old, new  # save a bit of memory while we paginate
-		await TextPages(ctx, '\n'.join(map(utils.escape_code_blocks, diff)), prefix='```diff\n').begin()
+		return '```diff\n' + '\n'.join(map(utils.escape_code_blocks, diff)) + '```'
 
 	@classmethod
 	def revision_summary(cls, guild, revision):
