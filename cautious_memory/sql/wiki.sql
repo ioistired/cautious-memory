@@ -126,23 +126,6 @@ FROM all_revisions
 WHERE revision_id = ANY ($2)
 ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-newest
 
--- :name get_revision_and_previous
--- params: revision_id
--- TODO dedupe from get_page_revisions and get_individual_revisions
-SELECT
-	guild, page_id, revision_id, author, content, revised, pages.title AS current_title,
-	coalesce_agg(new_title) OVER (PARTITION BY page_id ORDER BY revision_id) AS title,
-	coalesce_agg(new_title) OVER (
-		PARTITION BY page_id
-		ORDER BY revision_id
-		ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS old_title
-FROM pages INNER JOIN revisions USING (page_id)
-WHERE
-	page_id = (SELECT page_id FROM revisions WHERE revision_id = $1)
-	AND revision_id <= $1
-ORDER BY revision_id DESC
-LIMIT 2
-
 -- :name create_page
 -- params: guild, title
 INSERT INTO pages (guild, title, latest_revision)

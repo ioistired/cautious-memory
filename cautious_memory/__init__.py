@@ -83,6 +83,8 @@ class CautiousMemory(BenCogsBot):
 		'cautious_memory.cogs.permissions.commands',
 		'cautious_memory.cogs.wiki.db',
 		'cautious_memory.cogs.wiki.commands',
+		'cautious_memory.cogs.watch_lists.db',
+		'cautious_memory.cogs.watch_lists.commands',
 		'cautious_memory.cogs.api',
 		'cautious_memory.cogs.meta',
 		'jishaku',

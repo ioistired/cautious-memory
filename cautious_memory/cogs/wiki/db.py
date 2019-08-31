@@ -110,13 +110,6 @@ class WikiDatabase(commands.Cog):
 
 		return results
 
-	@optional_connection
-	async def get_revision_and_previous(self, revision_id):
-		rows = await connection().fetch(self.queries.get_revision_and_previous(), revision_id)
-		if not rows: return rows
-		if len(rows) == 1: return None, AttrDict(rows[0])
-		return list(map(AttrDict, rows[::-1]))  # old to new
-
 	async def page_count(self, guild_id, *, connection=None):
 		return await (connection or self.bot.pool).fetchval(self.queries.page_count(), guild_id)
 
