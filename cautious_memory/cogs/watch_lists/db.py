@@ -55,16 +55,19 @@ class WatchListsDatabase(commands.Cog):
 			coros = []
 			async for user_id in self.page_subscribers(revision_id):
 				member = guild.get_member(user_id)
-				embed = discord.Embed()
-				embed.title = f'Page “{new.current_title}” was edited in server {guild}'
-				embed.color = discord.Color.from_hsv(262/256, 55/256, 76/256)
-				embed.set_footer(text='Edited')
-				embed.timestamp = new.revised
-				embed.set_author(name=member.name, icon_url=member.avatar_url_as(static_format='png', size=64))
-				embed.description = self.wiki_commands.diff(guild, old, new)
-				coros.append(send(member, embed))
-
+				coros.append(send(member, self.page_edit_notification(member, new)))  # := when
 			await asyncio.gather(*coros)
+
+	def page_edit_notification_embed(self, member, revision):
+		member = guild.get_member(user_id)
+		embed = discord.Embed()
+		embed.title = f'Page “{new.current_title}” was edited in server {guild}'
+		embed.color = discord.Color.from_hsv(262/360, 55/100, 76/100)
+		embed.set_footer(text='Edited')
+		embed.timestamp = new.revised
+		embed.set_author(name=member.name, icon_url=member.avatar_url_as(static_format='png', size=64))
+		embed.description = self.wiki_commands.diff(guild, old, new)
+		coros.append(send(member, embed))
 
 	@optional_connection
 	async def watch_page(self, member, title) -> bool:
