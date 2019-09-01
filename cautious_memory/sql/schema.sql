@@ -82,6 +82,8 @@ CREATE TABLE page_subscribers(
 	user_id BIGINT NOT NULL,
 	PRIMARY KEY (page_id, user_id));
 
+CREATE INDEX page_subscribers_user_id_idx ON page_subscribers (user_id);
+
 --- PERMISSIONS
 
 CREATE TABLE role_permissions(
