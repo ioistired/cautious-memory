@@ -13,9 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ben_cogs.misc import human_join
 from discord.ext.commands import CommandError, UserInputError
-import inflect
-inflect = inflect.engine()
 
 class CautiousMemoryError(CommandError):
 	"""Generic error with the bot. This can be used to catch all bot errors."""
@@ -38,7 +37,7 @@ class MissingPermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
 	def __init__(self, permissions_needed):
 		self.permissions_needed = permissions_needed
-		joined = inflect.join([permission.name for permission in permissions_needed])
+		joined = human_join([permission.name for permission in permissions_needed])
 		super().__init__(f'Missing permissions to perform this action. You need these permissions: {joined}.')
 
 class PageContentTooLongError(PageError):

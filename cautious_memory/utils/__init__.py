@@ -14,6 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
+import functools
 import inspect
 import math
 import re
@@ -21,11 +22,6 @@ import re
 import aiocontextvars
 import asyncpg
 import discord
-
-attrdict = type('attrdict', (dict,), {
-	'__getattr__': dict.__getitem__,
-	'__setattr__': dict.__setitem__,
-	'__delattr__': dict.__delitem__})
 
 def escape_code_blocks(s):
 	return s.replace('`', '`\N{zero width non-joiner}')
@@ -41,29 +37,6 @@ def convert_emoji(s) -> discord.PartialEmoji:
 	if match:
 		return discord.PartialEmoji(animated=match[1], name=match[2], id=int(match[3]))
 	return discord.PartialEmoji(animated=None, name=s, id=None)
-
-# this function is Public Domain
-# https://creativecommons.org/publicdomain/zero/1.0/
-def load_sql(fp):
-	"""given a file-like object, read the queries delimited by `-- :name foo` comment lines
-	return a dict mapping these names to their respective SQL queries
-	the file-like is not closed afterwards.
-	"""
-	# tag -> list[lines]
-	queries = attrdict()
-	current_tag = ''
-
-	for line in fp:
-		match = re.match(r'\s*--\s*:name\s*(\S+).*?$', line)
-		if match:
-			current_tag = match[1]
-		if current_tag:
-			queries.setdefault(current_tag, []).append(line)
-
-	for tag, query in queries.items():
-		queries[tag] = ''.join(query)
-
-	return queries
 
 def bytes_to_int(x):
 	return int.from_bytes(x, byteorder='big')
@@ -98,12 +71,14 @@ def optional_connection(func):
 				await self.connection.close()
 
 	if inspect.isasyncgenfunction(func):
+		@functools.wraps(func)
 		async def inner(self, *args, **kwargs):
 			async with pool(self.bot.pool) as conn:
 				# this does not handle two-way async gens, but i don't have any of those either
 				async for x in func(self, *args, **kwargs):
 					yield x
 	else:
+		@functools.wraps(func)
 		async def inner(self, *args, **kwargs):
 			async with pool(self.bot.pool) as conn:
 				return await func(self, *args, **kwargs)

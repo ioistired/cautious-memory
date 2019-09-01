@@ -15,22 +15,21 @@
 
 import base64
 import contextlib
-import os.path
 import secrets
 
 import discord
 from discord.ext import commands
+from querypp import load_sql
 
 from .. import SQL_DIR
-from .. import utils
 
 class API(commands.Cog):
 	TOKEN_DELIMITER = b';'
 
 	def __init__(self, bot):
 		self.bot = bot
-		with open(os.path.join(SQL_DIR, 'api.sql')) as f:
-			self.queries = utils.load_sql(f)
+		with (SQL_DIR / 'api.sql').open() as f:
+			self.queries = load_sql(f)
 
 	@staticmethod
 	def any_parent_command_is(command, parent_command):

@@ -23,5 +23,6 @@ setuptools.setup(
 		'discord.py>=1.2.2,<2.0.0',
 		'jishaku>=1.14.0',
 		'json5',
+		'querypp==0.0.3',
 	],
 )

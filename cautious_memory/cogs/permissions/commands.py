@@ -17,9 +17,8 @@ import functools, operator
 import typing
 
 import discord
+from ben_cogs.misc import human_join
 from discord.ext import commands
-import inflect
-inflect = inflect.engine()
 
 from .db import Permissions
 
@@ -151,14 +150,14 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	def new_permissions_message(self, role, new_perms):
-		joined = inflect.join([perm.name for perm in new_perms])
+		joined = human_join([perm.name for perm in new_perms])
 		role_str = '@' + role.name if role.name != '@everyone' else role.name
 		response = f"""{self.bot.config["success_emoji"]} {role_str}'s new permissions: {joined}"""
 		return discord.utils.escape_mentions(response)
 
 	def new_overwrites_message(self, entity, title, new_allow, new_deny):
-		joined_allow = inflect.join([perm.name for perm in new_allow])
-		joined_deny = inflect.join([perm.name for perm in new_deny])
+		joined_allow = human_join([perm.name for perm in new_allow])
+		joined_deny = human_join([perm.name for perm in new_deny])
 
 		if isinstance(entity, discord.Role):
 			entity_str = '@' + entity.name if entity.name != '@everyone' else entity.name
