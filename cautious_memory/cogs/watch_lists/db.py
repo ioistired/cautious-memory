@@ -107,10 +107,11 @@ class WatchListsDatabase(commands.Cog):
 		"""subscribe the given user to the given page.
 		return success, ie True if they were not a subscriber before.
 		"""
-		await self.wiki_db.check_permissions(member, Permissions.view, title)
-		tag = await connection().execute(self.queries.watch_page(), member.guild.id, member.id, title)
-		if tag.rsplit(None, 1)[-1] == '0':
-			raise errors.PageNotFoundError(title)
+		async with connection().transaction():
+			title = (await self.wiki_db.resolve_page(member, title)).target
+			tag = await connection().execute(self.queries.watch_page(), member.guild.id, member.id, title)
+			if tag.rsplit(None, 1)[-1] == '0':
+				raise errors.PageNotFoundError(title)
 
 	@optional_connection
 	async def unwatch_page(self, member, title) -> bool:
