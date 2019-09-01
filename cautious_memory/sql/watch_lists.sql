@@ -27,10 +27,10 @@ DELETE FROM page_subscribers
 WHERE (page_id, user_id) = ((SELECT page_id FROM pages WHERE lower(title) = lower($3) AND guild = $1), $2)
 
 -- :name page_subscribers
--- params: revision_id
+-- params: page_id
 SELECT user_id
 FROM page_subscribers
-WHERE page_id = (SELECT page_id FROM revisions WHERE revision_id = $1)
+WHERE page_id = $1
 
 -- :name get_revision_and_previous
 -- params: revision_id

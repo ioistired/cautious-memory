@@ -53,7 +53,7 @@ class WatchListsDatabase(commands.Cog):
 				await member.send(embed=embed)
 
 			coros = []
-			async for user_id in self.page_subscribers(revision_id):
+			async for user_id in self.page_subscribers(new.page_id):
 				member = guild.get_member(user_id)
 				coros.append(send(member, self.page_edit_notification(member, new)))  # := when
 			await asyncio.gather(*coros)
@@ -88,9 +88,9 @@ class WatchListsDatabase(commands.Cog):
 		return tag.split(None, 1)[-1] == '1'
 
 	@optional_connection
-	async def page_subscribers(self, revision_id):
+	async def page_subscribers(self, page_id):
 		async with connection().transaction():
-			async for user_id, in connection().cursor(self.queries.page_subscribers(), revision_id):
+			async for user_id, in connection().cursor(self.queries.page_subscribers(), page_id):
 				yield user_id
 
 	@optional_connection
