@@ -41,6 +41,11 @@ SELECT user_id
 FROM page_subscribers
 WHERE page_id = $1
 
+-- :name delete_page_subscribers
+-- params: page_id
+DELETE FROM page_subscribers
+WHERE page_id = $1
+
 -- :name get_revision_and_previous
 -- params: revision_id
 -- TODO dedupe from wiki.get_page_revisions and wiki.get_individual_revisions

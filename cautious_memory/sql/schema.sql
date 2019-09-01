@@ -50,15 +50,6 @@ CREATE TABLE revisions(
 
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions DEFERRABLE INITIALLY DEFERRED;
 
-CREATE FUNCTION notify_page_edit() RETURNS TRIGGER AS $$ BEGIN
-	PERFORM * FROM pg_notify('page_edit', new.revision_id::text);
-	RETURN new; END; $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER notify_page_edit
-	AFTER INSERT ON revisions
-	FOR EACH ROW
-	EXECUTE PROCEDURE notify_page_edit();
-
 CREATE TABLE aliases(
 	title TEXT,
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
@@ -78,11 +69,30 @@ CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 --- WATCH LISTS
 
 CREATE TABLE page_subscribers(
-	page_id BIGINT REFERENCES pages ON DELETE CASCADE,
+	-- this is NOT a foreign key because we need to notify page subscribers when a page is deleted
+	page_id BIGINT NOT NULL,
 	user_id BIGINT NOT NULL,
 	PRIMARY KEY (page_id, user_id));
 
 CREATE INDEX page_subscribers_user_id_idx ON page_subscribers (user_id);
+
+CREATE FUNCTION notify_page_edit() RETURNS TRIGGER AS $$ BEGIN
+	PERFORM * FROM pg_notify('page_edit', new.revision_id::text);
+	RETURN new; END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER notify_page_edit
+	AFTER INSERT ON revisions
+	FOR EACH ROW
+	EXECUTE PROCEDURE notify_page_edit();
+
+CREATE FUNCTION notify_page_delete() RETURNS TRIGGER AS $$ BEGIN
+	PERFORM * FROM pg_notify('page_delete', old.guild::text || ',' || old.page_id::text || ',' || old.title);
+	RETURN NULL; END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER notify_page_delete
+	AFTER DELETE ON pages
+	FOR EACH ROW
+	EXECUTE PROCEDURE notify_page_delete();
 
 --- PERMISSIONS
 

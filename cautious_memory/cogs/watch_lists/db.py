@@ -14,6 +14,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import datetime as dt
 import logging
 
 import discord
@@ -27,6 +28,8 @@ from ...utils import connection, errors, optional_connection
 logger = logging.getLogger(__name__)
 
 class WatchListsDatabase(commands.Cog):
+	NOTIFICATION_EMBED_COLOR = discord.Color.from_hsv(262/360, 55/100, 76/100)
+
 	def __init__(self, bot):
 		self.bot = bot
 		self.wiki_commands = self.bot.cogs['Wiki']
@@ -56,20 +59,47 @@ class WatchListsDatabase(commands.Cog):
 			async for user_id in self.page_subscribers(new.page_id):
 				if user_id != new.author:
 					member = guild.get_member(user_id)
+					if member is None: continue
 					coros.append(send(member, self.page_edit_notification(member, old, new)))  # := when
 			await asyncio.gather(*coros)
+
+	@commands.Cog.listener()
+	@optional_connection
+	async def on_page_delete(self, guild_id, page_id, title):
+		guild = self.bot.get_guild(guild_id)
+		if guild is None:
+			logger.warning(f'on_page_edit: guild_id {guild_id} not found!')
+			return
+
+		coros = []
+		async for user_id in self.page_subscribers(page_id):
+			member = guild.get_member(user_id)
+			if member is None: continue
+			coros.append(member.send(embed=self.page_delete_notification(guild, title)))
+		await asyncio.gather(*coros)
+		await self.delete_page_subscribers(page_id)
 
 	def page_edit_notification(self, member, old, new):
 		embed = discord.Embed()
 		embed.title = f'Page “{new.current_title}” was edited in server {member.guild}'
-		embed.color = discord.Color.from_hsv(262/360, 55/100, 76/100)
+		embed.color = self.NOTIFICATION_EMBED_COLOR
 		embed.set_footer(text='Edited')
 		embed.timestamp = new.revised
-		embed.set_author(name=member.name, icon_url=member.avatar_url_as(static_format='png', size=64))
+		author = member.guild.get_member(new.author)
+		if author is not None:
+			embed.set_author(name=author.name, icon_url=author.avatar_url_as(static_format='png', size=64))
 		try:
 			embed.description = self.wiki_commands.diff(member.guild, old, new)
 		except commands.UserInputError as exc:
 			embed.description = str(exc)
+		return embed
+
+	def page_delete_notification(self, guild, title):
+		embed = discord.Embed()
+		embed.title = f'Page “{title}” was deleted in server {guild}'
+		embed.color = self.NOTIFICATION_EMBED_COLOR
+		embed.set_footer(text='Deleted')
+		embed.timestamp = dt.datetime.utcnow()  # ¯\_(ツ)_/¯
 		return embed
 
 	@optional_connection
@@ -101,6 +131,10 @@ class WatchListsDatabase(commands.Cog):
 		async with connection().transaction():
 			async for user_id, in connection().cursor(self.queries.page_subscribers(), page_id):
 				yield user_id
+
+	@optional_connection
+	async def delete_page_subscribers(self, page_id):
+		await connection().execute(self.queries.delete_page_subscribers(), page_id)
 
 	@optional_connection
 	async def get_revision_and_previous(self, revision_id):
