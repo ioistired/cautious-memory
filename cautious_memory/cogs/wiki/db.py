@@ -71,16 +71,17 @@ class WikiDatabase(commands.Cog):
 		# the fact that they were denied permission to view that alias would leak information about what
 		# page it is an alias to. Consider allowing anyone to resolve an alias, or only denying those who
 		# were globally denied view permissions.
-		await self.check_permissions(member, Permissions.view, title)
-		row = await connection().fetchrow(self.queries.get_alias(), member.guild.id, title)
-		if row is not None:
-			return AttrDict(row)
+		async with connection().transaction():
+			await self.check_permissions(member, Permissions.view, title)
+			row = await connection().fetchrow(self.queries.get_alias(), member.guild.id, title)
+			if row is not None:
+				return AttrDict(row)
 
-		row = await connection().fetchrow(self.queries.get_page_no_alias(), member.guild.id, title)
-		if row is not None:
-			return AttrDict(row)
+			row = await connection().fetchrow(self.queries.get_page_no_alias(), member.guild.id, title)
+			if row is not None:
+				return AttrDict(row)
 
-		raise errors.PageNotFoundError(title)
+			raise errors.PageNotFoundError(title)
 
 	@optional_connection
 	async def search_pages(self, member, query):
