@@ -26,6 +26,15 @@ SET user_id = page_subscribers.user_id
 DELETE FROM page_subscribers
 WHERE (page_id, user_id) = ((SELECT page_id FROM pages WHERE lower(title) = lower($3) AND guild = $1), $2)
 
+-- :name watch_list
+-- params: guild_id, user_id
+SELECT ps.page_id, title
+FROM
+	page_subscribers AS ps
+	INNER JOIN pages AS p ON (ps.page_id = p.page_id AND p.guild = $1)
+WHERE user_id = $2
+ORDER BY lower(title)
+
 -- :name page_subscribers
 -- params: page_id
 SELECT user_id

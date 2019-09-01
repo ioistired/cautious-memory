@@ -88,6 +88,12 @@ class WatchListsDatabase(commands.Cog):
 		return tag.split(None, 1)[-1] == '1'
 
 	@optional_connection
+	async def watch_list(self, member):
+		async with connection().transaction():
+			async for page_id, title in connection().cursor(self.queries.watch_list(), member.guild.id, member.id):
+				yield page_id, title
+
+	@optional_connection
 	async def page_subscribers(self, page_id):
 		async with connection().transaction():
 			async for user_id, in connection().cursor(self.queries.page_subscribers(), page_id):

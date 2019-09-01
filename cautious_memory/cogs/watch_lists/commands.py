@@ -15,18 +15,40 @@
 
 from discord.ext import commands
 
+from ...utils import connection, optional_connection
+from ...utils.paginator import Pages
+
 clean_content = commands.clean_content(use_nicknames=False)
 
 class WatchLists(commands.Cog, name='Watch Lists'):
 	def __init__(self, bot):
 		self.bot = bot
 		self.db = self.bot.cogs['WatchListsDatabase']
+		self.wiki_db = self.bot.cogs['WikiDatabase']
 
 	@commands.command()
 	async def watch(self, ctx, *, title: clean_content):
-		"""Adds a page to your watch list."""
+		"""Adds a page to your watch list. You will be notified when it's edited."""
 		await self.db.watch_page(ctx.author, title)
 		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
+
+	@commands.command()
+	@optional_connection
+	async def unwatch(self, ctx, *, title: clean_content):
+		"""Removes a page from your watch list."""
+		async with connection().transaction():
+			await self.wiki_db.get_page(ctx.author, title, partial=True, check_permissions=False)
+			await self.db.unwatch_page(ctx.author, title)
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
+
+	@commands.command(name='watch-list')
+	async def watch_list(self, ctx):
+		"""Shows your watch list."""
+		entries = [title async for page_id, title in self.db.watch_list(ctx.author)]
+		if not entries:
+			await ctx.send(f'You are not watching any pages. Use the {ctx.prefix}watch command to do so.')
+			return
+		await Pages(ctx, entries=entries).begin()
 
 def setup(bot):
 	bot.add_cog(WatchLists(bot))
