@@ -17,7 +17,9 @@
 -- params: guild_id, user_id, title
 INSERT INTO page_subscribers (page_id, user_id)
 VALUES ((SELECT page_id FROM pages WHERE lower(title) = lower($3) AND guild = $1), $2)
-ON CONFLICT (page_id, user_id) DO NOTHING
+ON CONFLICT (page_id, user_id) DO UPDATE
+-- why this bogus upsert? so that it only says 0 rows updated if the page doesn't exist
+SET user_id = page_subscribers.user_id
 
 -- :name unwatch_page
 -- params: guild_id, user_id, title

@@ -25,10 +25,8 @@ class WatchLists(commands.Cog, name='Watch Lists'):
 	@commands.command()
 	async def watch(self, ctx, *, title: clean_content):
 		"""Adds a page to your watch list."""
-		if await self.db.watch_page(ctx.author, title):
-			await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
-		else:
-			await ctx.send('Either that page does not exist or you are already watching it.')
+		await self.db.watch_page(ctx.author, title)
+		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 def setup(bot):
 	bot.add_cog(WatchLists(bot))

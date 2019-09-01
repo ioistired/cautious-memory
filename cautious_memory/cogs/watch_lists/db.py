@@ -73,7 +73,8 @@ class WatchListsDatabase(commands.Cog):
 		"""
 		await self.wiki_db.check_permissions(member, Permissions.view, title)
 		tag = await connection().execute(self.queries.watch_page(), member.guild.id, member.id, title)
-		return tag.rsplit(None, 1)[-1] == '1'
+		if tag.rsplit(None, 1)[-1] == '0':
+			raise errors.PageNotFoundError(title)
 
 	@optional_connection
 	async def unwatch_page(self, member, title) -> bool:
