@@ -1,4 +1,7 @@
 # Cautious Memory
+
+[![Discord Bots](https://discordbots.org/api/widget/status/541707781665718302.svg)](https://discordbots.org/bot/541707781665718302)
+
 A community wiki for Discord.
 
 [Invite it](https://discordapp.com/oauth2/authorize?client_id=541707781665718302&scope=bot)
