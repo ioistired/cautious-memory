@@ -66,21 +66,23 @@ class PermissionsDatabase(commands.Cog):
 		with (SQL_DIR / 'permissions.sql').open() as f:
 			self.queries = load_sql(f)
 
+	@optional_connection
 	async def permissions_for(self, member: discord.Member, title):
 		roles = [role.id for role in member.roles] + [member.id]
 		async with connection().transaction():
 			page_id = await connection().fetchval(self.queries.get_page_id(), member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
-			perms = await self.bot.pool.fetchval(
+			perms = await connection().fetchval(
 				self.queries.permissions_for(),
 				page_id, roles, Permissions.default.value)
 
 		return Permissions(perms)
 
+	@optional_connection
 	async def member_permissions(self, member: discord.Member):
 		roles = [role.id for role in member.roles]
-		perms = await self.bot.pool.fetchval(self.queries.member_permissions(), roles, Permissions.default.value)
+		perms = await connection().fetchval(self.queries.member_permissions(), roles, Permissions.default.value)
 		return Permissions(perms)
 
 	@optional_connection
@@ -95,11 +97,13 @@ class PermissionsDatabase(commands.Cog):
 		manager_roles.sort()
 		return manager_roles[-1] if manager_roles else None
 
+	@optional_connection
 	async def get_role_permissions(self, role: discord.Role):
-		return Permissions(await self.bot.pool.fetchval(self.queries.get_role_permissions(), role.id))
+		return Permissions(await connection().fetchval(self.queries.get_role_permissions(), role.id))
 
+	@optional_connection
 	async def set_role_permissions(self, role: discord.Role, perms: Permissions):
-		await self.bot.pool.execute(self.queries.set_role_permissions(), role.id, perms.value)
+		await connection().execute(self.queries.set_role_permissions(), role.id, perms.value)
 
 	@optional_connection
 	async def set_default_permissions(self, guild_id):
@@ -130,17 +134,19 @@ class PermissionsDatabase(commands.Cog):
 			await self.set_default_permissions(role.guild.id)
 		return Permissions(await connection().fetchval(self.queries.deny_role_permissions(), role.id, perms.value))
 
+	@optional_connection
 	async def get_page_overwrites(self, guild_id, title) -> typing.Mapping[int, typing.Tuple[Permissions, Permissions]]:
 		"""get the allowed and denied permissions for a particular page"""
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			page_id = await conn.fetchval(self.queries.get_page_id(), guild_id, title)
+		async with connection().transaction():
+			page_id = await connection().fetchval(self.queries.get_page_id(), guild_id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
 			return {
 				entity: (Permissions(allow), Permissions(deny))
-				for entity, allow, deny in await conn.fetch(self.queries.get_page_overwrites(), page_id)}
+				for entity, allow, deny in await connection().fetch(self.queries.get_page_overwrites(), page_id)}
 
+	@optional_connection
 	async def set_page_overwrites(
 		self,
 		*,
@@ -156,16 +162,17 @@ class PermissionsDatabase(commands.Cog):
 			raise ValueError('allowed and denied permissions must not intersect')
 
 		try:
-			await self.bot.pool.execute(
+			await connection().execute(
 				self.queries.set_page_overwrites(),
 				guild_id, title, entity_id, allow_perms.value, deny_perms.value)
 		except asyncpg.NotNullViolationError:
 			# the page_id CTE returned no rows
 			raise errors.PageNotFoundError(title)
 
+	@optional_connection
 	async def unset_page_overwrites(self, *, guild_id, title, entity_id):
 		"""remove all of the allowed and denied overwrites for a page"""
-		command_tag = await self.bot.pool.execute(self.queries.unset_page_overwrites(), guild_id, title, entity_id)
+		command_tag = await connection().execute(self.queries.unset_page_overwrites(), guild_id, title, entity_id)
 		count = int(command_tag.split()[-1])
 		if not count:
 			raise errors.PageNotFoundError(title)
