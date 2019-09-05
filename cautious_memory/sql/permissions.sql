@@ -16,21 +16,23 @@
 -- :name permissions_for
 -- params: page_id, role_ids, Permissions.default.value
 -- role_ids must include member_id for member specific page overwrites, and the first element must be the guild ID
-WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($2::BIGINT[])[1])
-SELECT
-	(
-		coalesce(bit_or(permissions), 0)
-		| coalesce(bit_or(allow), 0)
-		| coalesce((SELECT * FROM everyone_perms), $3))
-	& ~coalesce(bit_or(deny), 0)
-FROM
-	role_permissions
-	FULL OUTER JOIN page_permissions USING (entity)
-WHERE
-	entity = ANY ($2)  -- role permissions / role overwrites
-	AND (
-		page_id = $1
-		OR page_id IS NULL)  -- in case there's no page permissions for some role
+WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($2::BIGINT[])[1]),
+all_permissions AS (
+		SELECT
+			permissions,
+			0 AS allow,
+			0 AS deny
+		FROM role_permissions
+		WHERE entity = ANY ($2)
+	UNION ALL
+		SELECT
+			0 AS permissions,
+			allow,
+			deny
+		FROM page_permissions
+		WHERE entity = ANY ($2) OR page_id = $1)
+SELECT bit_or(permissions) | bit_or(allow) | (coalesce((SELECT * FROM everyone_perms), $3)) & ~bit_or(deny)
+FROM all_permissions
 
 -- :name member_permissions
 -- params: role_ids, Permissions.default.value
