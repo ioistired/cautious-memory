@@ -26,6 +26,11 @@ class WatchLists(commands.Cog, name='Watch Lists'):
 		self.db = self.bot.cogs['WatchListsDatabase']
 		self.wiki_db = self.bot.cogs['WikiDatabase']
 
+	def cog_check(self, ctx):
+		if not ctx.guild:
+			raise commands.NoPrivateMessage
+		return True
+
 	@commands.command()
 	async def watch(self, ctx, *, title: clean_content):
 		"""Adds a page to your watch list. You will be notified when it's edited."""

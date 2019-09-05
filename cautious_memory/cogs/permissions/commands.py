@@ -73,7 +73,9 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		self.db = self.bot.get_cog('PermissionsDatabase')
 
 	def cog_check(self, ctx):
-		return bool(ctx.guild)
+		if not ctx.guild:
+			raise commands.NoPrivateMessage
+		return True
 
 	@commands.command(name='grant')
 	async def grant_permissions(self, ctx, role: RoleOrEveryone, *permissions: Permissions):

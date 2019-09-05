@@ -54,7 +54,9 @@ class Wiki(commands.Cog):
 		self.permissions_db = self.bot.cogs['PermissionsDatabase']
 
 	def cog_check(self, ctx):
-		return bool(ctx.guild)
+		if not ctx.guild:
+			raise commands.NoPrivateMessage
+		return True
 
 	@commands.command(aliases=['view'])
 	async def show(self, ctx, *, title: clean_content):
