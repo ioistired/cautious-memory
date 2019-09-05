@@ -19,7 +19,6 @@ import secrets
 
 import discord
 from discord.ext import commands
-from querypp import load_sql
 
 from .. import SQL_DIR
 
@@ -28,8 +27,7 @@ class API(commands.Cog):
 
 	def __init__(self, bot):
 		self.bot = bot
-		with (SQL_DIR / 'api.sql').open() as f:
-			self.queries = load_sql(f)
+		self.queries = self.bot.jinja_env.get_template('api.sql')
 
 	@staticmethod
 	def any_parent_command_is(command, parent_command):

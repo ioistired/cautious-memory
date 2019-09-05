@@ -22,6 +22,7 @@ from pathlib import Path
 import asyncpg
 import discord
 import json5
+import querypp
 try:
 	import uvloop
 except ImportError:
@@ -42,6 +43,7 @@ logger = logging.getLogger('bot')
 class CautiousMemory(BenCogsBot):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, setup_db=True, **kwargs)
+		self.jinja_env = querypp.QueryEnvironment(SQL_DIR)
 
 	def process_config(self):
 		self.owners = set(self.config.get('extra_owners', []))

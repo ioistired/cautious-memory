@@ -19,7 +19,7 @@ import logging
 
 import discord
 from discord.ext import commands
-from querypp import AttrDict, load_sql
+from querypp import AttrDict
 
 from ..permissions.db import Permissions
 from ... import SQL_DIR
@@ -34,8 +34,7 @@ class WatchListsDatabase(commands.Cog):
 		self.bot = bot
 		self.wiki_commands = self.bot.cogs['Wiki']
 		self.wiki_db = self.bot.cogs['WikiDatabase']
-		with (SQL_DIR / 'watch_lists.sql').open() as f:
-			self.queries = load_sql(f)
+		self.queries = self.bot.jinja_env.get_template('watch_lists.sql')
 
 	@commands.Cog.listener()
 	@optional_connection

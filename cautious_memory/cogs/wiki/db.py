@@ -21,7 +21,7 @@ import typing
 import asyncpg
 import discord
 from discord.ext import commands
-from querypp import AttrDict, load_sql
+from querypp import AttrDict
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
@@ -31,8 +31,7 @@ class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.permissions_db = self.bot.cogs['PermissionsDatabase']
-		with (SQL_DIR / 'wiki.sql').open() as f:
-			self.queries = load_sql(f)
+		self.queries = self.bot.jinja_env.get_template('wiki.sql')
 
 	@optional_connection
 	async def get_page(self, member, title, *, partial=False, check_permissions=True):

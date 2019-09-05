@@ -20,7 +20,6 @@ import asyncpg
 import discord
 from ben_cogs.misc import human_join
 from discord.ext import commands
-from querypp import load_sql
 
 from ... import SQL_DIR
 from ...utils import connection, errors, optional_connection
@@ -63,8 +62,7 @@ del __new__
 class PermissionsDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		with (SQL_DIR / 'permissions.sql').open() as f:
-			self.queries = load_sql(f)
+		self.queries = self.bot.jinja_env.get_template('permissions.sql')
 
 	@optional_connection
 	async def permissions_for(self, member: discord.Member, title):

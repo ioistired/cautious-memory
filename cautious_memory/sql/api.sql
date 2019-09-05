@@ -13,36 +13,42 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
--- :name list_apps
+-- :query list_apps
 -- params: user_id
 SELECT app_id, app_name
 FROM api_tokens
 WHERE user_id = $1
+-- :endquery
 
--- :name existing_token
+-- :query existing_token
 -- params: user_id, app_id
 SELECT app_name, secret
 FROM api_tokens
 WHERE user_id = $1 AND app_id = $2
+-- :endquery
 
--- :name new_token
+-- :query new_token
 -- params: user_id, app_name, secret
 INSERT INTO api_tokens (user_id, app_name, secret)
 VALUES ($1, $2, $3)
 RETURNING app_id
+-- :endquery
 
--- :name get_secret
+-- :query get_secret
 -- params: user_id, app_id
 SELECT secret
 FROM api_tokens
 WHERE user_id = $1 AND app_id = $2
+-- :endquery
 
--- :name delete_user_account
+-- :query delete_user_account
 -- params: user_id
 DELETE FROM api_tokens
 WHERE user_id = $1
+-- :endquery
 
--- :name delete_app
+-- :query delete_app
 -- params: user_id, app_id
 DELETE FROM api_tokens
 WHERE user_id = $1 AND app_id = $2
+-- :endquery

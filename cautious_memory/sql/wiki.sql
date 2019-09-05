@@ -1,4 +1,4 @@
--- :name get_page
+-- :query get_page
 -- params: guild_id, title
 SELECT
 	pages.page_id, created, content, pages.title,
@@ -13,8 +13,9 @@ WHERE
 	pages.guild = $1
 	AND
 	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+-- :endquery
 
--- :name get_page_basic
+-- :query get_page_basic
 -- params: guild_id_title
 -- for when you don't need the revisions but still need to resolve aliases
 SELECT
@@ -27,27 +28,31 @@ WHERE
 	pages.guild = $1
 	AND
 	(lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+-- :endquery
 
--- :name get_page_no_alias
+-- :query get_page_no_alias
 -- params: guild_id, title
 SELECT title AS target, NULL AS alias
 FROM pages
 WHERE
 	guild = $1
 	AND lower(pages.title) = lower($2)
+-- :endquery
 
--- :name get_alias
+-- :query get_alias
 -- params: guild_id, title
 SELECT pages.title AS target, aliases.title AS alias
 FROM aliases INNER JOIN pages USING (page_id)
 WHERE aliases.guild = $1 AND lower(aliases.title) = lower($2)
+-- :endquery
 
--- :name delete_page
+-- :query delete_page
 -- params: guild_id, title
 DELETE FROM pages
 WHERE guild = $1 AND lower(title) = lower($2)
+-- :endquery
 
--- :name delete_alias
+-- :query delete_alias
 -- params: guild_id, title
 WITH aliases_cte AS (
 	SELECT aliases.title, page_id
@@ -57,8 +62,9 @@ DELETE FROM aliases
 WHERE EXISTS (
 	SELECT 1 FROM aliases_cte
 	WHERE (aliases.title, aliases.page_id) = (aliases_cte.title, aliases_cte.page_id))
+-- :endquery
 
--- :name get_page_revisions
+-- :query get_page_revisions
 -- params: guild_id, title
 SELECT
 	page_id, revision_id, author, content, revised, pages.title AS current_title,
@@ -68,8 +74,9 @@ WHERE
 	guild = $1
 	AND lower(title) = lower($2)
 ORDER BY revision_id DESC
+-- :endquery
 
--- :name get_all_pages
+-- :query get_all_pages
 -- params: guild_id
 -- TODO dedupe
 SELECT * FROM (
@@ -80,8 +87,9 @@ SELECT * FROM (
 	FROM aliases) AS why_do_subqueries_in_FROM_need_an_alias_smh_my_head
 WHERE guild = $1
 ORDER BY lower(title) ASC
+-- :endquery
 
--- :name get_recent_revisions
+-- :query get_recent_revisions
 -- params: guild_id, cutoff
 SELECT
 	title AS current_title, revision_id, page_id, author, revised,
@@ -89,8 +97,9 @@ SELECT
 FROM revisions INNER JOIN pages USING (page_id)
 WHERE guild = $1 AND revised > $2
 ORDER BY revised DESC
+-- :endquery
 
--- :name search_pages
+-- :query search_pages
 -- params: guild_id, query
 -- TODO dedupe
 SELECT title
@@ -105,8 +114,9 @@ WHERE
 	AND title % $2
 ORDER BY similarity(title, $2) DESC
 LIMIT 100
+-- :endquery
 
--- :name get_individual_revisions
+-- :query get_individual_revisions
 -- params: guild_id, revision_ids
 WITH all_revisions AS (
 	-- TODO dedupe from get_page_revisions (use a stored proc?)
@@ -125,22 +135,25 @@ SELECT *
 FROM all_revisions
 WHERE revision_id = ANY ($2)
 ORDER BY revision_id ASC  -- usually this is used for diffs so we want oldest-newest
+-- :endquery
 
--- :name create_page
+-- :query create_page
 -- params: guild, title
 INSERT INTO pages (guild, title, latest_revision)
 VALUES ($1, $2, 0)
 RETURNING page_id
+-- :endquery
 
--- :name get_page_id
+-- :query get_page_id
 -- params: guild_id, title
 SELECT page_id
 FROM pages
 WHERE
 	guild = $1
 	AND lower(title) = lower($2)
+-- :endquery
 
--- :name rename_page
+-- :query rename_page
 -- params: guild_id, old_title, new_title
 UPDATE pages
 SET title = $3
@@ -148,8 +161,9 @@ WHERE
 	lower(title) = lower($2)
 	AND guild = $1
 RETURNING page_id
+-- :endquery
 
--- :name alias_page
+-- :query alias_page
 -- params: guild_id, alias_title, target_title
 WITH page AS (
 	SELECT page_id, guild
@@ -157,13 +171,15 @@ WITH page AS (
 	WHERE guild = $1 AND lower(title) = LOWER($3))
 INSERT INTO aliases (page_id, guild, title)
 VALUES ((SELECT page_id FROM page), (SELECT guild FROM page), $2)
+-- :endquery
 
--- :name log_page_rename
+-- :query log_page_rename
 -- params: page_id, author_id, new_title
 INSERT INTO revisions (page_id, author, new_title)
 VALUES ($1, $2, $3)
+-- :endquery
 
--- :name create_revision
+-- :query create_revision
 -- params: page_id, author_id, content
 WITH revision AS (
 	INSERT INTO revisions (page_id, author, content)
@@ -172,8 +188,10 @@ WITH revision AS (
 UPDATE pages
 SET latest_revision = (SELECT * FROM revision)
 WHERE page_id = $1
+-- :endquery
 
--- :name create_first_revision (for creating new pages)
+-- :query create_first_revision
+-- for creating new pages
 -- params: page_id, author_id, content, title
 WITH revision AS (
 	INSERT INTO revisions (page_id, author, content, new_title)
@@ -182,8 +200,9 @@ WITH revision AS (
 UPDATE pages
 SET latest_revision = (SELECT * FROM revision)
 WHERE page_id = $1
+-- :endquery
 
--- :name log_page_use
+-- :query log_page_use
 -- params: guild_id, title
 -- TODO dedupe this CTE
 WITH page AS (
@@ -193,10 +212,11 @@ WITH page AS (
 	LIMIT 1)
 INSERT INTO page_usage_history (page_id)
 VALUES ((SELECT * FROM page))
+-- :endquery
 
--- STATS
+-- STATS
 
--- :name page_uses
+-- :query page_uses
 -- params: guild_id, title, cutoff_date
 WITH page AS (
 	SELECT page_id
@@ -207,8 +227,9 @@ WITH page AS (
 SELECT count(*)
 FROM page_usage_history
 WHERE page_id = (SELECT * FROM page) AND time > $3
+-- :endquery
 
--- :name page_revisions_count
+-- :query page_revisions_count
 -- params: guild_id, title
 WITH page AS (
 	SELECT page_id
@@ -219,26 +240,30 @@ WITH page AS (
 SELECT count(*)
 FROM revisions
 WHERE page_id = (SELECT * FROM page)
+-- :endquery
 
--- :name page_count
+-- :query page_count
 -- params: guild_id
 SELECT count(*)
 FROM pages
 WHERE guild = $1
+-- :endquery
 
--- :name revisions_count
+-- :query revisions_count
 -- params: guild_id
 SELECT count(*)
 FROM revisions INNER JOIN pages USING (page_id)
 WHERE guild = $1
+-- :endquery
 
--- :name total_page_uses
+-- :query total_page_uses
 -- params: guild_id, cutoff_date
 SELECT count(*)
 FROM pages LEFT JOIN page_usage_history USING (page_id)
 WHERE guild = $1 AND time > $2
+-- :endquery
 
--- :name top_pages
+-- :query top_pages
 -- params: guild_id, cutoff_date
 SELECT title, count(time) AS count
 FROM pages LEFT JOIN page_usage_history USING (page_id)
@@ -246,8 +271,9 @@ WHERE guild = $1 AND time > $2
 GROUP BY page_id
 ORDER BY count DESC
 LIMIT 3
+-- :endquery
 
--- :name top_editors
+-- :query top_editors
 -- params: guild_id, cutoff_date
 -- TODO dedupe from top_pages
 SELECT author AS id, count(revision_id) AS count
@@ -256,8 +282,9 @@ WHERE guild = $1 AND revised > $2
 GROUP BY author
 ORDER BY count DESC
 LIMIT 3
+-- :endquery
 
--- :name top_page_editors
+-- :query top_page_editors
 -- params: guild_id, title, cutoff_date
 WITH page_id AS (
 	SELECT page_id
@@ -270,3 +297,4 @@ WHERE page_id = (SELECT * FROM page_id) AND revised > $3
 GROUP BY author
 ORDER BY rank DESC
 LIMIT 3
+-- :endquery
