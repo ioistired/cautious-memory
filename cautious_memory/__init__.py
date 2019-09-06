@@ -29,7 +29,7 @@ except ImportError:
 	pass  # Windows
 else:
 	asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-from ben_cogs.bot import BenCogsBot
+from bot_bin.bot import Bot
 from discord.ext import commands
 
 from . import utils
@@ -40,7 +40,7 @@ SQL_DIR = BASE_DIR / 'sql'
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('bot')
 
-class CautiousMemory(BenCogsBot):
+class CautiousMemory(Bot):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, setup_db=True, **kwargs)
 		self.jinja_env = querypp.QueryEnvironment(SQL_DIR)
@@ -63,8 +63,7 @@ class CautiousMemory(BenCogsBot):
 	### Init / Shutdown
 
 	async def init_db(self):
-		credentials = self.config['database']
-		self.pool = await asyncpg.create_pool(**credentials)
+		await super().init_db()
 
 		self.listener_conn = await self.pool.acquire()
 		def on_page_edit(connection, pid, channel, revision_id):
@@ -93,8 +92,8 @@ class CautiousMemory(BenCogsBot):
 		'cautious_memory.cogs.api',
 		'cautious_memory.cogs.meta',
 		'jishaku',
-		'ben_cogs.misc',
-		'ben_cogs.debug',
-		'ben_cogs.sql',
-		'ben_cogs.stats',
+		'bot_bin.misc',
+		'bot_bin.debug',
+		'bot_bin.sql',
+		'bot_bin.stats',
 	)

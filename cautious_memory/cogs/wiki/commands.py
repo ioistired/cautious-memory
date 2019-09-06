@@ -19,7 +19,7 @@ import io
 import re
 import typing
 
-from ben_cogs.misc import absolute_natural_timedelta
+from bot_bin.misc import absolute_natural_timedelta
 import discord
 from discord.ext import commands
 

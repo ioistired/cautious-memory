@@ -19,7 +19,7 @@ setuptools.setup(
 	install_requires=[
 		'aiocontextvars',
 		'asyncpg',
-		'ben_cogs[sql]>=0.14.0,<1.0.0',
+		'bot_bin[sql]>=1.0.1,<2.0.0',
 		'discord.py>=1.2.2,<2.0.0',
 		'jishaku>=1.14.0',
 		'json5',

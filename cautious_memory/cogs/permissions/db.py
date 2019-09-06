@@ -18,7 +18,7 @@ import typing
 
 import asyncpg
 import discord
-from ben_cogs.misc import human_join
+from bot_bin.misc import natural_join
 from discord.ext import commands
 
 from ... import SQL_DIR
@@ -46,7 +46,7 @@ class Permissions(enum.Flag):
 		try:
 			return cls.__members__[arg.lower().replace('-', '_')]
 		except KeyError:
-			valid_perms = human_join(list(cls.__members__), conj='or')
+			valid_perms = natural_join(list(cls.__members__), conj='or')
 			raise commands.BadArgument(f'Invalid permission specified. Try one of these: {valid_perms}.')
 
 # Permissions.__new__ is replaced after class definition

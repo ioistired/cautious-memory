@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
-from ben_cogs.misc import human_join
+from bot_bin.misc import natural_join
 from discord.ext.commands import CommandError, UserInputError
 
 class CautiousMemoryError(CommandError):
@@ -37,7 +37,7 @@ class MissingPermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
 	def __init__(self, permissions_needed):
 		self.permissions_needed = permissions_needed
-		joined = human_join([permission.name for permission in permissions_needed])
+		joined = natural_join([permission.name for permission in permissions_needed])
 		super().__init__(f'Missing permissions to perform this action. You need these permissions: {joined}.')
 
 class PageContentTooLongError(PageError):
