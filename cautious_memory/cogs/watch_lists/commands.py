@@ -46,7 +46,7 @@ class WatchLists(commands.Cog, name='Watch Lists'):
 			await self.db.unwatch_page(ctx.author, title)
 		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
-	@commands.command(name='watch-list')
+	@commands.command(name='watch-list', aliases=['watchlist'])
 	async def watch_list(self, ctx):
 		"""Shows your watch list."""
 		entries = [title async for page_id, title in self.db.watch_list(ctx.author)]
