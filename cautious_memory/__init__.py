@@ -20,6 +20,7 @@ import traceback
 from pathlib import Path
 
 import asyncpg
+import braceexpand
 import discord
 import json5
 import querypp
@@ -82,18 +83,15 @@ class CautiousMemory(Bot):
 		await self.listener_conn.close()
 		await super().close()
 
-	startup_extensions = (
-		'cautious_memory.cogs.permissions.db',
-		'cautious_memory.cogs.permissions.commands',
-		'cautious_memory.cogs.wiki.db',
-		'cautious_memory.cogs.wiki.commands',
-		'cautious_memory.cogs.watch_lists.db',
-		'cautious_memory.cogs.watch_lists.commands',
-		'cautious_memory.cogs.api',
-		'cautious_memory.cogs.meta',
-		'jishaku',
-		'bot_bin.misc',
-		'bot_bin.debug',
-		'bot_bin.sql',
-		'bot_bin.stats',
-	)
+	startup_extensions = list(braceexpand.braceexpand("""{
+		cautious_memory.cogs.{
+			{permissions,wiki,watch_lists}.{db,commands},
+			api,
+			meta},
+		jishaku,
+		bot_bin.{
+			misc,
+			debug,
+			sql,
+			stats}}
+	""".replace('\t', '').replace('\n', '')))

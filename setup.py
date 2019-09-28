@@ -20,6 +20,7 @@ setuptools.setup(
 		'aiocontextvars',
 		'asyncpg',
 		'bot_bin[sql]>=1.0.1,<2.0.0',
+		'braceexpand',
 		'discord.py>=1.2.2,<2.0.0',
 		'jishaku>=1.14.0',
 		'json5',
