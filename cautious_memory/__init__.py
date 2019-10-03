@@ -78,9 +78,10 @@ class CautiousMemory(Bot):
 			await self.listener_conn.add_listener(channel, callback)
 
 	async def close(self):
-		for channel, callback in self.listener_conn_callbacks:
-			await self.listener_conn.remove_listener(channel, callback)
-		await self.listener_conn.close()
+		with contextlib.suppress(AttributeError):
+			for channel, callback in self.listener_conn_callbacks:
+				await self.listener_conn.remove_listener(channel, callback)
+			await self.listener_conn.close()
 		await super().close()
 
 	startup_extensions = list(braceexpand.braceexpand("""{
