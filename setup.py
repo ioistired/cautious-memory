@@ -17,9 +17,8 @@ setuptools.setup(
 	include_package_data=True,
 
 	install_requires=[
-		'aiocontextvars',
 		'asyncpg',
-		'bot_bin[sql]>=1.0.1,<2.0.0',
+		'bot_bin[sql]>=1.1.0,<2.0.0',
 		'braceexpand',
 		'discord.py>=1.2.2,<2.0.0',
 		'jishaku>=1.14.0',

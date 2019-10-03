@@ -20,12 +20,13 @@ import typing
 
 import asyncpg
 import discord
+from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
 from querypp import AttrDict
 
 from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import connection, errors, optional_connection
+from ...utils import errors
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):

@@ -19,13 +19,14 @@ import io
 import re
 import typing
 
-from bot_bin.misc import absolute_natural_timedelta
 import discord
+from bot_bin.misc import absolute_natural_timedelta
+from bot_bin.sql import connection
 from discord.ext import commands
 
 from ..permissions.db import Permissions
 from ... import utils
-from ...utils import connection, errors
+from ...utils import errors
 from ...utils.paginator import Pages, TextPages
 
 # if someone names a page with an @mention, we should use the username of that user

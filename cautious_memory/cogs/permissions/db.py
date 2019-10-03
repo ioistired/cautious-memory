@@ -19,10 +19,11 @@ import typing
 import asyncpg
 import discord
 from bot_bin.misc import natural_join
+from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
 
 from ... import SQL_DIR
-from ...utils import connection, errors, optional_connection
+from ...utils import errors
 
 class Permissions(enum.Flag):
 	# this class is the single source of truth for the permissions values

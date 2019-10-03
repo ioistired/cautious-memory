@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
+from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
 
-from ...utils import connection, optional_connection
 from ...utils.paginator import Pages
 
 clean_content = commands.clean_content(use_nicknames=False)

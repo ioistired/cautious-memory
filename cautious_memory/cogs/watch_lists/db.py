@@ -19,11 +19,12 @@ import logging
 
 import discord
 from discord.ext import commands
+from bot_bin.sql import connection, optional_connection
 from querypp import AttrDict
 
 from ..permissions.db import Permissions
 from ... import SQL_DIR
-from ...utils import connection, errors, optional_connection
+from ...utils import errors
 
 logger = logging.getLogger(__name__)
 
