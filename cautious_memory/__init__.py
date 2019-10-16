@@ -65,8 +65,10 @@ class CautiousMemory(Bot):
 
 	async def init_db(self):
 		await super().init_db()
+		await self.init_listener()
 
-		self.listener_conn = await self.pool.acquire()
+	async def init_listener(self):
+		self.listener_conn = await asyncpg.connect(**self.config['database'])
 		def on_page_edit(connection, pid, channel, revision_id):
 			# convert an asyncpg event into a discord event
 			self.dispatch('page_edit', int(revision_id))
