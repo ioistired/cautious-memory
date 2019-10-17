@@ -21,13 +21,14 @@ import discord
 from discord.ext import commands
 
 from .. import SQL_DIR
+from .. import utils
 
 class API(commands.Cog):
 	TOKEN_DELIMITER = b';'
 
 	def __init__(self, bot):
 		self.bot = bot
-		self.queries = self.bot.jinja_env.get_template('api.sql')
+		self.queries = self.bot.queries('api.sql')
 
 	@staticmethod
 	def any_parent_command_is(command, parent_command):
@@ -91,7 +92,6 @@ class API(commands.Cog):
 			await ctx.send('Error: no such app found.')
 			return
 
-		print(token)
 		await self.send_token(ctx, token, app_name)
 
 	async def send_token(self, ctx, token, app_name, *, new=False):
@@ -109,10 +109,10 @@ class API(commands.Cog):
 				await ctx.message.add_reaction('📬')
 
 	async def list_apps(self, user_id):
-		return await self.bot.pool.fetch(self.queries.list_apps, user_id)
+		return await self.bot.pool.fetch(self.queries.list_apps(), user_id)
 
 	async def existing_token(self, user_id, app_id):
-		row = await self.bot.pool.fetchrow(self.queries.existing_token, user_id, app_id)
+		row = await self.bot.pool.fetchrow(self.queries.existing_token(), user_id, app_id)
 		if row is None:
 			return None
 		app_name, secret = row
@@ -120,7 +120,7 @@ class API(commands.Cog):
 
 	async def new_token(self, user_id, app_name):
 		secret = secrets.token_bytes()
-		app_id = await self.bot.pool.fetchval(self.queries.new_token, user_id, app_name, secret)
+		app_id = await self.bot.pool.fetchval(self.queries.new_token(), user_id, app_name, secret)
 		return self.encode_token(user_id, app_id, secret)
 
 	async def regenerate_token(self, user_id, app_id):
@@ -139,7 +139,7 @@ class API(commands.Cog):
 		if app_id is None:
 			app_id = token_app_id
 
-		db_secret = await self.bot.pool.fetchval(self.queries.get_secret, user_id, app_id)
+		db_secret = await self.bot.pool.fetchval(self.queries.get_secret(), user_id, app_id)
 		if db_secret is None:
 			secrets.compare_digest(token, token)
 			return False
@@ -148,22 +148,24 @@ class API(commands.Cog):
 		return (user_id, app_id) if secrets.compare_digest(token, db_token) else (None, None)
 
 	async def delete_user_account(self, user_id):
-		await self.bot.pool.execute(self.queries.delete_user_account, user_id)
+		await self.bot.pool.execute(self.queries.delete_user_account(), user_id)
 
 	async def delete_app(self, user_id, app_id):
-		await self.bot.pool.execute(self.queries.delete_app, user_id, app_id)
+		await self.bot.pool.execute(self.queries.delete_app(), user_id, app_id)
 
 	def generate_token(self, user_id, app_id):
 		secret = base64.b64encode(secrets.token_bytes())
 		return self.encode_token(user_id, app_id, secret)
 
-	def encode_token(self, user_id, app_id, secret: bytes):
-		user_id, app_id = map(utils.int_to_bytes, [user_id, app_id])
-		return self.TOKEN_DELIMITER.join(map(base64.b64encode, [user_id, app_id, secret]))
+	@classmethod
+	def encode_token(cls, user_id, app_id, secret: bytes):
+		user_id, app_id = map(utils.int_to_bytes, (user_id, app_id))
+		return cls.TOKEN_DELIMITER.join(map(base64.b64encode, (user_id, app_id, secret)))
 
-	def decode_token(self, token):
-		user_id, app_id, secret = map(base64.b64decode, token.split(self.TOKEN_DELIMITER))
-		user_id, app_id = map(utils.bytes_to_int, [user_id, app_id])
+	@classmethod
+	def decode_token(cls, token):
+		user_id, app_id, secret = map(base64.b64decode, token.split(cls.TOKEN_DELIMITER))
+		user_id, app_id = map(utils.bytes_to_int, (user_id, app_id))
 
 		return user_id, app_id, secret
 

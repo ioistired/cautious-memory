@@ -22,6 +22,7 @@ from pathlib import Path
 import asyncpg
 import braceexpand
 import discord
+import jinja2
 import json5
 import querypp
 try:
@@ -44,7 +45,9 @@ logger = logging.getLogger('bot')
 class CautiousMemory(Bot):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, setup_db=True, **kwargs)
-		self.jinja_env = querypp.QueryEnvironment(SQL_DIR)
+		self.jinja_env = jinja2.Environment(
+			loader=jinja2.FileSystemLoader(str(SQL_DIR)),
+			line_statement_prefix='-- :')
 
 	def process_config(self):
 		self.owners = set(self.config.get('extra_owners', []))
@@ -60,6 +63,9 @@ class CautiousMemory(Bot):
 
 	async def is_privileged(self, member):
 		return member.guild_permissions.administrator or await self.is_owner(member)
+
+	def queries(self, template_name):
+		return self.jinja_env.get_template(template_name).module
 
 	### Init / Shutdown
 
@@ -86,7 +92,7 @@ class CautiousMemory(Bot):
 			await self.listener_conn.close()
 		await super().close()
 
-	startup_extensions = list(braceexpand.braceexpand("""{
+	startup_extensions = utils.expand("""{
 		cautious_memory.cogs.{
 			{permissions,wiki,watch_lists}.{db,commands},
 			api,
@@ -97,4 +103,4 @@ class CautiousMemory(Bot):
 			debug,
 			sql,
 			stats}}
-	""".replace('\t', '').replace('\n', '')))
+	""")

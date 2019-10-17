@@ -22,7 +22,6 @@ from bot_bin.misc import natural_join
 from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
 
-from ... import SQL_DIR
 from ...utils import errors
 
 class Permissions(enum.Flag):
@@ -63,7 +62,7 @@ del __new__
 class PermissionsDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.queries = self.bot.jinja_env.get_template('permissions.sql')
+		self.queries = self.bot.queries('permissions.sql')
 
 	@optional_connection
 	async def permissions_for(self, member: discord.Member, title):

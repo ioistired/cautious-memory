@@ -21,8 +21,8 @@ setuptools.setup(
 		'bot_bin[sql]>=1.1.0,<2.0.0',
 		'braceexpand',
 		'discord.py>=1.2.2,<2.0.0',
+		'jinja2',
 		'jishaku>=1.14.0',
 		'json5',
-		'querypp>=0.1.0.post1,<1.0.0',
 	],
 )

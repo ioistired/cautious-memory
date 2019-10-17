@@ -22,17 +22,15 @@ import asyncpg
 import discord
 from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
-from querypp import AttrDict
 
-from ... import SQL_DIR
 from ..permissions.db import Permissions
-from ...utils import errors
+from ...utils import AttrDict, errors
 
 class WikiDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.permissions_db = self.bot.cogs['PermissionsDatabase']
-		self.queries = self.bot.jinja_env.get_template('wiki.sql')
+		self.queries = self.bot.queries('wiki.sql')
 
 	@optional_connection
 	async def get_page(self, member, title, *, partial=False, check_permissions=True):

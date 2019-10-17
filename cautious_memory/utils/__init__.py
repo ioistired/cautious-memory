@@ -16,6 +16,7 @@
 import math
 import re
 
+import braceexpand
 import discord
 
 def escape_code_blocks(s):
@@ -39,3 +40,10 @@ def bytes_to_int(x):
 def int_to_bytes(n):
 	num_bytes = int(math.ceil(n.bit_length() / 8))
 	return n.to_bytes(num_bytes, byteorder='big')
+
+def expand(text):
+	return list(braceexpand.braceexpand(text.replace('\n', '').replace('\t', '')))
+
+class AttrDict:
+	def __init__(self, *args, **kwargs):
+		vars(self).update(dict(*args, **kwargs))

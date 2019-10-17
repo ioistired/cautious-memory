@@ -13,22 +13,22 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
--- :query watch_page
+-- :macro watch_page()
 -- params: guild_id, user_id, title
 INSERT INTO page_subscribers (page_id, user_id)
 VALUES ((SELECT page_id FROM pages WHERE lower(title) = lower($3) AND guild = $1), $2)
 ON CONFLICT (page_id, user_id) DO UPDATE
--- why this bogus upsert? so that it only says 0 rows updated if the page doesn't exist
+-- why this bogus upsert? so that it always says 1 row updated if the page exists
 SET user_id = page_subscribers.user_id
--- :endquery
+-- :endmacro
 
--- :query unwatch_page
+-- :macro unwatch_page()
 -- params: guild_id, user_id, title
 DELETE FROM page_subscribers
 WHERE (page_id, user_id) = ((SELECT page_id FROM pages WHERE lower(title) = lower($3) AND guild = $1), $2)
--- :endquery
+-- :endmacro
 
--- :query watch_list
+-- :macro watch_list()
 -- params: guild_id, user_id
 SELECT ps.page_id, title
 FROM
@@ -36,22 +36,22 @@ FROM
 	INNER JOIN pages AS p ON (ps.page_id = p.page_id AND p.guild = $1)
 WHERE user_id = $2
 ORDER BY lower(title)
--- :endquery
+-- :endmacro
 
--- :query page_subscribers
+-- :macro page_subscribers()
 -- params: page_id
 SELECT user_id
 FROM page_subscribers
 WHERE page_id = $1
--- :endquery
+-- :endmacro
 
--- :query delete_page_subscribers
+-- :macro delete_page_subscribers()
 -- params: page_id
 DELETE FROM page_subscribers
 WHERE page_id = $1
--- :endquery
+-- :endmacro
 
--- :query get_revision_and_previous
+-- :macro get_revision_and_previous()
 -- params: revision_id
 -- TODO dedupe from wiki.get_page_revisions and wiki.get_individual_revisions
 SELECT
@@ -67,4 +67,4 @@ WHERE
 	AND revision_id <= $1
 ORDER BY revision_id DESC
 LIMIT 2
--- :endquery
+-- :endmacro

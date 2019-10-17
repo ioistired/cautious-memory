@@ -13,76 +13,76 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
--- :query permissions_for
+-- :macro permissions_for()
 -- params: page_id, role_ids, Permissions.default.value
 -- role_ids must include member_id for member specific page overwrites, and the first element must be the guild ID
 SELECT * FROM permissions_for($1, $2, $3)
--- :endquery
+-- :endmacro
 
--- :query member_permissions
+-- :macro member_permissions()
 -- params: role_ids, Permissions.default.value
 -- role_ids must have the guild ID as the first element
 WITH everyone_perms AS (SELECT permissions FROM role_permissions WHERE entity = ($1::BIGINT[])[1])
 SELECT coalesce(bit_or(permissions), 0) | coalesce((SELECT * FROM everyone_perms),  $2)
 FROM role_permissions
 WHERE entity = ANY ($1)
--- :endquery
+-- :endmacro
 
--- :query manage_permissions_roles
+-- :macro manage_permissions_roles()
 -- params: role_ids, Permissions.manage_permissions.value
 -- role_ids must include guild_id in case the default role has manage permissions
 SELECT entity
 FROM role_permissions
 WHERE entity = ANY ($1) AND permissions & $2 != 0
--- :endquery
+-- :endmacro
 
--- :query get_role_permissions
+-- :macro get_role_permissions()
 -- params: role_id
 SELECT permissions
 FROM role_permissions
 WHERE entity = $1
--- :endquery
+-- :endmacro
 
--- :query set_role_permissions
+-- :macro set_role_permissions()
 -- params: role_id, perms
 INSERT INTO role_permissions(entity, permissions)
 VALUES ($1, $2)
 ON CONFLICT (entity) DO UPDATE SET
 	permissions = EXCLUDED.permissions
--- :endquery
+-- :endmacro
 
--- :query set_default_permissions
+-- :macro set_default_permissions()
 -- params: guild_id, Permissions.default.value
 INSERT INTO role_permissions(entity, permissions)
 VALUES ($1, $2)
 ON CONFLICT DO NOTHING
--- :endquery
+-- :endmacro
 
--- :query allow_role_permissions
+-- :macro allow_role_permissions()
 -- params: role_id, new_perms
 INSERT INTO role_permissions(entity, permissions)
 VALUES ($1, $2)
 ON CONFLICT (entity) DO UPDATE SET
 	permissions = role_permissions.permissions | $2
 RETURNING permissions
--- :endquery
+-- :endmacro
 
--- :query deny_role_permissions
+-- :macro deny_role_permissions()
 -- params: role_id, perms
 UPDATE role_permissions
 SET permissions = role_permissions.permissions & ~$2::INTEGER
 WHERE entity = $1
 RETURNING permissions
--- :endquery
+-- :endmacro
 
--- :query get_page_overwrites
+-- :macro get_page_overwrites()
 -- params: page_id
 SELECT entity, allow, deny
 FROM page_permissions
 WHERE page_id = $1
--- :endquery
+-- :endmacro
 
--- :query set_page_overwrites
+-- :macro set_page_overwrites()
 -- params: guild_id, title, entity_id, allowed_perms, denied_perms
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 INSERT INTO page_permissions (page_id, entity, allow, deny)
@@ -90,18 +90,18 @@ VALUES ((SELECT * FROM page_id), $3, $4, $5)
 ON CONFLICT (page_id, entity) DO UPDATE SET
 	allow = EXCLUDED.allow,
 	deny = EXCLUDED.deny
--- :endquery
+-- :endmacro
 
--- :query unset_page_overwrites
+-- :macro unset_page_overwrites()
 -- params: guild_id, title, entity_id
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 DELETE FROM page_permissions
 WHERE
 	page_id = (SELECT * FROM page_id)
 	AND entity = $3
--- :endquery
+-- :endmacro
 
--- :query add_page_permissions
+-- :macro add_page_permissions()
 -- params: guild_id, title, entity_id, new_allow_perms, new_deny_perms
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 INSERT INTO page_permissions (page_id, entity, allow, deny)
@@ -110,9 +110,9 @@ ON CONFLICT (page_id, entity) DO UPDATE SET
 	allow = (page_permissions.allow | EXCLUDED.allow) & ~EXCLUDED.deny,
 	deny = (page_permissions.deny | EXCLUDED.deny) & ~EXCLUDED.allow
 RETURNING allow, deny
--- :endquery
+-- :endmacro
 
--- :query unset_page_permissions
+-- :macro unset_page_permissions()
 -- params: guild_id, title, entity_id, perms
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
 UPDATE page_permissions SET
@@ -120,11 +120,11 @@ UPDATE page_permissions SET
 	deny = deny & ~$4::INTEGER
 WHERE page_id = (SELECT * FROM page_id) AND entity = $3
 RETURNING allow, deny
--- :endquery
+-- :endmacro
 
--- :query get_page_id
+-- :macro get_page_id()
 -- params: guild_id, title
 SELECT page_id
 FROM aliases RIGHT JOIN pages USING (page_id)
 WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
--- :endquery
+-- :endmacro
