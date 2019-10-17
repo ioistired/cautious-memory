@@ -24,7 +24,6 @@ import braceexpand
 import discord
 import jinja2
 import json5
-import querypp
 try:
 	import uvloop
 except ImportError:
