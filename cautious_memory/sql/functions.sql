@@ -51,4 +51,5 @@ CREATE FUNCTION permissions_for(
 		SELECT bit_or(permissions) | bit_or(allow) | (coalesce(everyone_perms, p_default_permissions)) & ~bit_or(deny)
 		INTO computed
 		FROM all_permissions;
+
 		RETURN COALESCE(computed, p_default_permissions); END; $$ LANGUAGE plpgsql;
