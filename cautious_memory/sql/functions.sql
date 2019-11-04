@@ -47,7 +47,7 @@ CREATE FUNCTION permissions_for(
 					allow,
 					deny
 				FROM page_permissions
-				WHERE entity = ANY ($2) OR page_id = $1)
+				WHERE entity = ANY ($2) AND page_id = $1)
 		SELECT bit_or(permissions) | bit_or(allow) | (coalesce(everyone_perms, p_default_permissions)) & ~bit_or(deny)
 		INTO computed
 		FROM all_permissions;
