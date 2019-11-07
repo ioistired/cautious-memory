@@ -14,9 +14,9 @@
 -- along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
 -- :macro permissions_for()
--- params: page_id, role_ids, Permissions.default.value
+-- params: page_id, member_id, role_ids, guild_id, Permissions.default.value
 -- role_ids must include member_id for member specific page overwrites, and the first element must be the guild ID
-SELECT * FROM permissions_for($1, $2, $3)
+SELECT * FROM permissions_for($1, $2, $3, $4, $5)
 -- :endmacro
 
 -- :macro member_permissions()

@@ -66,14 +66,14 @@ class PermissionsDatabase(commands.Cog):
 
 	@optional_connection
 	async def permissions_for(self, member: discord.Member, title):
-		roles = [role.id for role in member.roles] + [member.id]
+		role_ids = [role.id for role in member.roles if role != member.guild.default_role]
 		async with connection().transaction():
 			page_id = await connection().fetchval(self.queries.get_page_id(), member.guild.id, title)
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 			perms = await connection().fetchval(
 				self.queries.permissions_for(),
-				page_id, roles, Permissions.default.value)
+				page_id, member.id, role_ids, member.guild.id, Permissions.default.value)
 
 		return Permissions(perms)
 

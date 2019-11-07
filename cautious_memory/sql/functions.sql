@@ -23,33 +23,65 @@ CREATE AGGREGATE coalesce_agg(anyelement) (
 
 CREATE FUNCTION permissions_for(
 	p_page_id pages.page_id%TYPE,
+	p_member_id BIGINT,
 	p_role_ids BIGINT[],
+	p_guild_id BIGINT,
 	p_default_permissions role_permissions.permissions%TYPE
 ) RETURNS role_permissions.permissions%TYPE AS $$
 	DECLARE
-		everyone_role BIGINT := p_role_ids[1];
-		everyone_perms role_permissions.permissions%TYPE := (
+		v_everyone_perms role_permissions.permissions%TYPE := (
 			SELECT permissions
 			FROM role_permissions
-			WHERE entity = everyone_role);
-		computed role_permissions.permissions%TYPE;
+			WHERE entity = p_guild_id);
+		v_base role_permissions.permissions%TYPE;
+		v_allow role_permissions.permissions%TYPE;
+		v_deny role_permissions.permissions%TYPE;
 	BEGIN
-		WITH all_permissions AS (
-				SELECT
-					permissions,
-					0 AS allow,
-					0 AS deny
-				FROM role_permissions
-				WHERE entity = ANY ($2)
-			UNION ALL
-				SELECT
-					0 AS permissions,
-					allow,
-					deny
-				FROM page_permissions
-				WHERE entity = ANY ($2) AND page_id = $1)
-		SELECT bit_or(permissions) | bit_or(allow) | (coalesce(everyone_perms, p_default_permissions)) & ~bit_or(deny)
-		INTO computed
-		FROM all_permissions;
+		SELECT permissions
+		FROM role_permissions
+		WHERE entity = p_guild_id
+		INTO v_base;
+		v_base := coalesce(v_base, p_default_permissions);
 
-		RETURN COALESCE(computed, p_default_permissions); END; $$ LANGUAGE plpgsql;
+		-- apply role permissions
+		v_base := v_base | coalesce((
+			SELECT bit_or(permissions)
+			FROM role_permissions
+			WHERE entity = ANY (p_role_ids)), 0);
+
+		-- apply @everyone overwrites first since it's special
+		SELECT allow, deny
+		FROM page_permissions
+		WHERE entity = p_guild_id
+		AND page_id = p_page_id
+		INTO v_allow, v_deny;
+
+		v_allow := coalesce(v_allow, 0);
+		v_deny := coalesce(v_deny, 0);
+
+		v_base := (v_base & ~v_deny) | v_allow;
+
+		v_allow := v_allow | coalesce((
+			SELECT bit_or(allow)
+			FROM page_permissions
+			WHERE entity = ANY (p_role_ids) AND page_id = p_page_id), 0);
+
+		v_deny := v_deny | coalesce((
+			SELECT bit_or(deny)
+			FROM page_permissions
+			WHERE entity = ANY (p_role_ids) AND page_id = p_page_id), 0);
+
+		v_base := (v_base & ~v_deny) | v_allow;
+
+		-- member specific overwrites
+		v_base := v_base & ~coalesce((
+			SELECT deny
+			FROM page_permissions
+			WHERE entity = p_member_id AND page_id = p_page_id), 0);
+
+		v_base := v_base | coalesce((
+			SELECT allow
+			FROM page_permissions
+			WHERE entity = p_member_id AND page_id = p_page_id), 0);
+
+		RETURN v_base; END; $$ LANGUAGE plpgsql;
