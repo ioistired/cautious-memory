@@ -113,7 +113,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
 			member=ctx.author, entity_id=role_or_member.id, title=page_title, new_allow_perms=perms)
-		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
+		await ctx.send(self.overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='deny-page')
 	async def deny_page_permissions(
@@ -131,7 +131,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.add_page_permissions(
 			member=ctx.author, entity_id=role_or_member.id, title=page_title, new_deny_perms=perms)
-		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
+		await ctx.send(self.overwrites_message(role_or_member, page_title, new_allow, new_deny))
 
 	@commands.command(name='uncheck-page')
 	async def unset_page_permissions(
@@ -149,7 +149,13 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		perms = functools.reduce(operator.or_, permissions, Permissions.none)
 		new_allow, new_deny = await self.db.unset_page_permissions(
 			member=ctx.author, entity_id=role_or_member.id, title=page_title, perms=perms)
-		await ctx.send(self.new_overwrites_message(role_or_member, page_title, new_allow, new_deny))
+		await ctx.send(self.overwrites_message(role_or_member, page_title, new_allow, new_deny))
+
+	@commands.command(name='show-page-permissions', aliases=['page-permissions', 'pp'])
+	async def show_page_permissions(self, ctx, role_or_member: Entity, page_title: clean_content):
+		"""Show the current permissions for a role or member on a page."""
+		allow, deny = await self.db.get_page_overwrites_for(ctx.guild.id, role_or_member.id, page_title)
+		await ctx.send(self.overwrites_message(role_or_member, page_title, allow, deny, new=False))
 
 	def new_permissions_message(self, role, new_perms):
 		joined = natural_join([perm.name for perm in new_perms])
@@ -157,7 +163,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 		response = f"""{self.bot.config["success_emoji"]} {role_str}'s new permissions: {joined}"""
 		return discord.utils.escape_mentions(response)
 
-	def new_overwrites_message(self, entity, title, new_allow, new_deny):
+	def overwrites_message(self, entity, title, new_allow, new_deny, *, new=True):
 		joined_allow = natural_join([perm.name for perm in new_allow])
 		joined_deny = natural_join([perm.name for perm in new_deny])
 
@@ -167,7 +173,8 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 			entity_str = '@' + entity.display_name
 
 		response = (
-			f"""{self.bot.config["success_emoji"]} {entity_str}'s new permissions on {title}:\n"""
+			(self.bot.config['success_emoji'] if new else '')  # the emoji indicates a change took place
+			+ f""" {entity_str}'s {"new " if new else ""}permissions on {title}:\n"""
 			f'Allowed: {joined_allow}\n'
 			f'Denied: {joined_deny}')
 		return discord.utils.escape_mentions(response)

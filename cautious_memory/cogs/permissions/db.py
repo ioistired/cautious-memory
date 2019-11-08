@@ -145,6 +145,22 @@ class PermissionsDatabase(commands.Cog):
 				for entity, allow, deny in await connection().fetch(self.queries.get_page_overwrites(), page_id)}
 
 	@optional_connection
+	async def get_page_overwrites_for(
+		self,
+		guild_id,
+		entity_id: int,
+		title
+	) -> typing.Tuple[Permissions, Permissions]:
+		async with connection().transaction():
+			page_id = await connection().fetchval(self.queries.get_page_id(), guild_id, title)
+			if page_id is None:
+				raise errors.PageNotFoundError(title)
+
+			return tuple(map(Permissions, await connection().fetchrow(
+				self.queries.get_page_overwrites_for(),
+				page_id, entity_id)))
+
+	@optional_connection
 	async def set_page_overwrites(
 		self,
 		*,

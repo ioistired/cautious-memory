@@ -82,6 +82,13 @@ FROM page_permissions
 WHERE page_id = $1
 -- :endmacro
 
+-- :macro get_page_overwrites_for()
+-- params: page_id, entity_id
+SELECT allow, deny
+FROM page_permissions
+WHERE page_id = $1 AND entity = $2
+-- :endmacro
+
 -- :macro set_page_overwrites()
 -- params: guild_id, title, entity_id, allowed_perms, denied_perms
 WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
