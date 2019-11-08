@@ -178,8 +178,8 @@ class Wiki(commands.Cog):
 				await ctx.send(file=discord.File(io.StringIO(escaped), page.title + '.md'))
 			await ctx.send(escaped2)
 
-	@commands.command()
-	async def altraw(self, ctx, *, title: clean_content):
+	@commands.command(aliases=['altraw'])
+	async def coderaw(self, ctx, *, title: clean_content):
 		"""Shows the raw contents of a page in a code block.
 
 		This is for some tricky markdown that is hard to show outside of a code block, like ">" at the end of a link.
@@ -269,8 +269,8 @@ class Wiki(commands.Cog):
 		if original_title is not None:
 			await ctx.send(f'Page “{original_title}” edited successfully.')
 
-	@commands.command(aliases=['remove', 'rm', 'del'])
-	async def delete(self, ctx, *, title: clean_content):
+	@commands.command(aliases=['delete', 'rm', 'del'])
+	async def remove(self, ctx, *, title: clean_content):
 		"""Deletes a wiki page. This deletes all of its revisions and aliases, as well.
 
 		You must have the "delete pages" permission.
