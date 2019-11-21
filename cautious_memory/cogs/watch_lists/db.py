@@ -46,10 +46,14 @@ class WatchListsDatabase(commands.Cog):
 				return
 
 			async def send(member, embed):
-				try:
-					await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
-				except errors.MissingPermissionsError:
-					return
+				# A new connection has to be acquired since this function is being run in parallel.
+				# Trying to use the same connection more than once results in "another operation is in progress" errors
+				async with self.bot.pool.acquire() as conn:
+					connection.set(conn)
+					try:
+						await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
+					except errors.MissingPermissionsError:
+						return
 
 				await member.send(embed=embed)
 
