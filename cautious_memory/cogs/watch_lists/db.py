@@ -45,24 +45,19 @@ class WatchListsDatabase(commands.Cog):
 				logger.warning(f'on_page_edit: guild_id {new.guild} not found!')
 				return
 
-			async def send(member, embed):
-				# A new connection has to be acquired since this function is being run in parallel.
-				# Trying to use the same connection more than once results in "another operation is in progress" errors
-				async with self.bot.pool.acquire() as conn:
-					connection.set(conn)
-					try:
-						await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
-					except errors.MissingPermissionsError:
-						return
-
-				await member.send(embed=embed)
-
 			coros = []
 			async for user_id in self.page_subscribers(new.page_id):
 				if user_id != new.author:
 					member = guild.get_member(user_id)
 					if member is None: continue
-					coros.append(send(member, self.page_edit_notification(member, old, new)))  # := when
+
+					try:
+						await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
+					except errors.MissingPermissionsError:
+						return
+
+					coros.append(member.send(embed=self.page_edit_notification(member, old, new)))
+
 			await asyncio.gather(*coros)
 
 	@commands.Cog.listener()
