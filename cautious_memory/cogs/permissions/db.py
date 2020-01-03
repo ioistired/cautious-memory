@@ -156,9 +156,13 @@ class PermissionsDatabase(commands.Cog):
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			return tuple(map(Permissions, await connection().fetchrow(
+			row = await connection().fetchrow(
 				self.queries.get_page_overwrites_for(),
-				page_id, entity_id)))
+				page_id, entity_id)
+
+			if row is None:
+				return (Permissions.none, Permissions.none)
+			return tuple(map(Permissions, row))
 
 	@optional_connection
 	async def set_page_overwrites(
