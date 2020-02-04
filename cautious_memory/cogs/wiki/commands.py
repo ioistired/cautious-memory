@@ -59,7 +59,7 @@ class Wiki(commands.Cog):
 			raise commands.NoPrivateMessage
 		return True
 
-	@commands.command(aliases=['view'])
+	@commands.command(aliases=['view', 'page'])
 	async def show(self, ctx, *, title: clean_content):
 		"""Shows you the contents of the page requested."""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
