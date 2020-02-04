@@ -37,7 +37,7 @@ class WatchListsDatabase(commands.Cog):
 
 	@commands.Cog.listener()
 	@optional_connection
-	async def on_page_edit(self, revision_id):
+	async def on_cm_page_edit(self, revision_id):
 		async with connection().transaction():
 			old, new = await self.get_revision_and_previous(revision_id)
 			guild = self.bot.get_guild(new.guild)
@@ -62,7 +62,7 @@ class WatchListsDatabase(commands.Cog):
 
 	@commands.Cog.listener()
 	@optional_connection
-	async def on_page_delete(self, guild_id, page_id, title):
+	async def on_cm_page_delete(self, guild_id, page_id, title):
 		guild = self.bot.get_guild(guild_id)
 		if guild is None:
 			logger.warning(f'on_page_edit: guild_id {guild_id} not found!')
