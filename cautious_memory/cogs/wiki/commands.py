@@ -143,7 +143,7 @@ class Wiki(commands.Cog):
 
 		first_place = ord('🥇')
 		e.add_field(name='Top editors', inline=False, value='\n'.join(
-			f'{chr(first_place + i)} <@{editor.id}> authored {editor.rank * 100}% ({editor.count}) revisions recently'
+			f'{chr(first_place + i)} <@{editor.id}> authored {editor.rank:.2%} ({editor.count}) revisions recently'
 			for i, editor in enumerate(top_editors)))
 
 		await ctx.send(embed=e)
