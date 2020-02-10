@@ -20,7 +20,7 @@ import braceexpand
 import discord
 
 def escape_code_blocks(s):
-	return s.replace('`', '`\N{zero width non-joiner}')
+	return s.replace('```', '``\N{zero width non-joiner}`')
 
 def format_datetime(d) -> str:
 	return d.strftime("%Y-%m-%d %I:%M:%S %p UTC")
