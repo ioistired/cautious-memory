@@ -24,9 +24,12 @@ from bot_bin.sql import connection, optional_connection
 from discord.ext import commands
 
 from ..permissions.db import Permissions
-from ...utils import AttrDict, errors
+from ...utils import AttrDict, errors, round_down
 
 class WikiDatabase(commands.Cog):
+	TITLE_LENGTH_LIMIT = 200
+	CONTENT_LENGTH_LIMIT = round_down(2000 - len('cm/edit "" ') - TITLE_LENGTH_LIMIT, multiple=50)
+
 	def __init__(self, bot):
 		self.bot = bot
 		self.permissions_db = self.bot.cogs['PermissionsDatabase']
@@ -147,6 +150,9 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def create_page(self, member, title, content):
+		self.check_title(title)
+		self.check_content(content)
+
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
 			if await connection().fetchrow(self.queries.get_alias(), member.guild.id, title):
@@ -161,6 +167,8 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def alias_page(self, member, alias_title, target_title):
+		self.check_title(alias_title)
+
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
 			await self.check_permissions(member, Permissions.view, target_title)
@@ -175,6 +183,9 @@ class WikiDatabase(commands.Cog):
 
 	@optional_connection
 	async def revise_page(self, member, title, new_content) -> typing.Optional[str]:
+		self.check_title(title)
+		self.check_content(new_content)
+
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.edit, title)
 
@@ -182,18 +193,15 @@ class WikiDatabase(commands.Cog):
 			if page is None:
 				raise errors.PageNotFoundError(title)
 
-			try:
-				await connection().execute(self.queries.create_revision(), page['page_id'], member.id, new_content)
-			except asyncpg.StringDataRightTruncationError as exc:
-				# XXX dumb way to do it but it's the only way i've got
-				limit = int(re.search(r'character varying\((\d+)\)', exc.message)[1])
-				raise errors.PageContentTooLongError(title, len(new_content), limit)
+			await connection().execute(self.queries.create_revision(), page['page_id'], member.id, new_content)
 
 			if page['alias']:
 				return page['original']
 
 	@optional_connection
 	async def rename_page(self, member, title, new_title):
+		self.check_title(new_title)
+
 		async with connection().transaction():
 			try:
 				page_id = await connection().fetchval(self.queries.rename_page(), member.guild.id, title, new_title)
@@ -247,6 +255,16 @@ class WikiDatabase(commands.Cog):
 	@optional_connection
 	async def log_page_use(self, guild_id, title):
 		await connection().execute(self.queries.log_page_use(), guild_id, title)
+
+	@classmethod
+	def check_content(cls, content):
+		if len(content) > cls.CONTENT_LENGTH_LIMIT:
+			raise errors.PageContentTooLongError(content, cls.CONTENT_LENGTH_LIMIT)
+
+	@classmethod
+	def check_title(cls, title):
+		if len(title) > cls.TITLE_LENGTH_LIMIT:
+			raise errors.PageTitleTooLongError(title, cls.TITLE_LENGTH_LIMIT)
 
 	## Permissions
 

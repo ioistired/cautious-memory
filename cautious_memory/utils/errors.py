@@ -40,9 +40,12 @@ class MissingPermissionsError(PageError):
 		joined = natural_join([permission.name for permission in permissions_needed])
 		super().__init__(f'Missing permissions to perform this action. You need these permissions: {joined}.')
 
+class PageTitleTooLongError(PageError):
+	def __init__(self, title, limit):
+		super().__init__(
+			f'That title is {len(title)} characters long, but the limit is {limit} characters.')
+
 class PageContentTooLongError(PageError):
-	def __init__(self, title, actual_length, max_length):
-		self.title = title
-		self.actual_length = actual_length
-		self.limit = limit = self.max_length = max_length
-		super().__init__(f'That text is too long. The limit is {limit}.')
+	def __init__(self, content, limit):
+		super().__init__(
+			f'That page would be {len(content)} characters long, but the limit is {limit} characters.')

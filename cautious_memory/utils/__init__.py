@@ -47,3 +47,7 @@ def expand(text):
 class AttrDict:
 	def __init__(self, *args, **kwargs):
 		vars(self).update(dict(*args, **kwargs))
+
+def round_down(n, *, multiple):
+	"""round n down to the nearest multiple of multiple"""
+	return n // multiple * multiple
