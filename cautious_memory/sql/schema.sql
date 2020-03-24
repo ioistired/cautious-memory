@@ -28,7 +28,8 @@ CREATE TABLE pages(
 	guild BIGINT NOT NULL,
 	-- this information could be gotten by just looking at the date of the oldest revision
 	-- but this way is easier
-	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
+	created TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE UNIQUE INDEX pages_uniq_idx ON pages (lower(title), guild);
 CREATE INDEX pages_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
@@ -43,14 +44,9 @@ CREATE TABLE revisions(
 	author BIGINT NOT NULL,
 	-- TODO bring this length limit down to match cogs/wiki/db.py
 	-- Doing so will require migrating a few existing pages
-	content VARCHAR(2000),
-	new_title VARCHAR(:title_length_limit),
+	content NOT NULL VARCHAR(2000),
+	title NOT NULL VARCHAR(:title_length_limit),
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
-
-	-- TODO find a way to make this conditional
-	-- ideally this check would not apply to the first revision as that makes finding the then title for
-	-- each revision easier
-	-- CHECK (num_nonnulls(content, new_title) = 1)
 );
 
 ALTER TABLE pages ADD CONSTRAINT "pages_latest_revision_fkey" FOREIGN KEY (latest_revision) REFERENCES revisions DEFERRABLE INITIALLY DEFERRED;
@@ -60,14 +56,16 @@ CREATE TABLE aliases(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
 	-- denormalized a bit to make searching aliases and pages easier
 	guild BIGINT NOT NULL,
-	aliased TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP);
+	aliased TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), guild);
 CREATE INDEX aliases_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
 
 CREATE TABLE page_usage_history(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
-	time TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'UTC'));
+	time TIMESTAMP WITHOUT TIME ZONE DEFAULT (now() AT TIME ZONE 'UTC')
+);
 
 CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 
@@ -77,34 +75,38 @@ CREATE TABLE page_subscribers(
 	-- this is NOT a foreign key because we need to notify page subscribers when a page is deleted
 	page_id BIGINT NOT NULL,
 	user_id BIGINT NOT NULL,
-	PRIMARY KEY (page_id, user_id));
+	PRIMARY KEY (page_id, user_id)
+);
 
 CREATE INDEX page_subscribers_user_id_idx ON page_subscribers (user_id);
 
 CREATE FUNCTION notify_page_edit() RETURNS TRIGGER AS $$ BEGIN
 	PERFORM * FROM pg_notify('page_edit', new.revision_id::text);
-	RETURN new; END; $$ LANGUAGE plpgsql;
+	RETURN new;
+END; $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER notify_page_edit
-	AFTER INSERT ON revisions
-	FOR EACH ROW
-	EXECUTE PROCEDURE notify_page_edit();
+AFTER INSERT ON revisions
+FOR EACH ROW
+EXECUTE PROCEDURE notify_page_edit();
 
 CREATE FUNCTION notify_page_delete() RETURNS TRIGGER AS $$ BEGIN
 	PERFORM * FROM pg_notify('page_delete', old.guild::text || ',' || old.page_id::text || ',' || old.title);
-	RETURN NULL; END; $$ LANGUAGE plpgsql;
+	RETURN NULL;
+END; $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER notify_page_delete
-	AFTER DELETE ON pages
-	FOR EACH ROW
-	EXECUTE PROCEDURE notify_page_delete();
+AFTER DELETE ON pages
+FOR EACH ROW
+EXECUTE PROCEDURE notify_page_delete();
 
 --- PERMISSIONS
 
 CREATE TABLE role_permissions(
 	-- these are always roles, but the column is named "entity" to ease joining with page_permissions
 	entity BIGINT PRIMARY KEY,
-	permissions INTEGER NOT NULL);
+	permissions INTEGER NOT NULL
+);
 
 CREATE TABLE page_permissions(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
@@ -117,7 +119,8 @@ CREATE TABLE page_permissions(
 
 	-- you may not allow and deny a permission
 	CHECK (allow & deny = 0),
-	PRIMARY KEY (page_id, entity));
+	PRIMARY KEY (page_id, entity)
+);
 
 --- API
 
@@ -127,4 +130,5 @@ CREATE TABLE api_tokens(
 	app_name VARCHAR(200),
 	secret BYTEA NOT NULL,
 
-	PRIMARY KEY (user_id, app_id));
+	PRIMARY KEY (user_id, app_id)
+);
