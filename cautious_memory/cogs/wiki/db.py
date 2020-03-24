@@ -172,6 +172,7 @@ class WikiDatabase(commands.Cog):
 		async with connection().transaction():
 			await self.check_permissions(member, Permissions.create)
 			await self.check_permissions(member, Permissions.view, target_title)
+			await self.ensure_title_available(member, alias_title)
 
 			try:
 				await connection().execute(self.queries.alias_page(), member.guild.id, alias_title, target_title)
@@ -203,6 +204,8 @@ class WikiDatabase(commands.Cog):
 		self.check_title(new_title)
 
 		async with connection().transaction():
+			await self.ensure_title_available(member, new_title)
+
 			try:
 				page_id = await connection().fetchval(self.queries.rename_page(), member.guild.id, title, new_title)
 			except asyncpg.UniqueViolationError:
@@ -265,6 +268,11 @@ class WikiDatabase(commands.Cog):
 	def check_title(cls, title):
 		if len(title) > cls.TITLE_LENGTH_LIMIT:
 			raise errors.PageTitleTooLongError(title, cls.TITLE_LENGTH_LIMIT)
+
+	@optional_connection
+	async def ensure_title_available(self, member, title):
+		if await connection().fetchrow(self.queries.get_page_basic(), member.guild.id, title):
+			raise errors.PageExistsError
 
 	## Permissions
 
