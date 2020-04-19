@@ -47,16 +47,19 @@ class WatchListsDatabase(commands.Cog):
 
 			coros = []
 			async for user_id in self.page_subscribers(new.page_id):
-				if user_id != new.author:
-					member = guild.get_member(user_id)
-					if member is None: continue
+				# editing a page you subscribe to should not notify yourself
+				if user_id == new.author:
+					continue
 
-					try:
-						await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
-					except errors.MissingPermissionsError:
-						return
+				member = guild.get_member(user_id)
+				if member is None: continue
 
-					coros.append(member.send(embed=self.page_edit_notification(member, old, new)))
+				try:
+					await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
+				except errors.MissingPermissionsError:
+					return
+
+				coros.append(member.send(embed=self.page_edit_notification(member, old, new)))
 
 			await asyncio.gather(*coros)
 
