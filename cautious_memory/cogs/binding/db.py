@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class BoundMessagesDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.queries = bot.queries('bound_messages.sql')
+		self.queries = bot.queries('binding.sql')
 
 	@commands.Cog.listener()
 	async def on_cm_page_edit(self, revision_id):
