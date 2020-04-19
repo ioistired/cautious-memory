@@ -93,7 +93,7 @@ class CautiousMemory(Bot):
 
 	startup_extensions = utils.expand("""{
 		cautious_memory.cogs.{
-			{permissions,wiki,watch_lists}.{db,commands},
+			{permissions,wiki,watch_lists,binding}.{db,commands},
 			api,
 			meta},
 		jishaku,

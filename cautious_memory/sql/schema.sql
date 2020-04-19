@@ -69,7 +69,7 @@ CREATE TABLE page_usage_history(
 
 CREATE INDEX page_usage_history_idx ON page_usage_history (page_id);
 
---- WATCH LISTS
+--- WATCH LISTS / MESSAGE BINDING
 
 CREATE TABLE page_subscribers(
 	-- this is NOT a foreign key because we need to notify page subscribers when a page is deleted
@@ -79,6 +79,15 @@ CREATE TABLE page_subscribers(
 );
 
 CREATE INDEX page_subscribers_user_id_idx ON page_subscribers (user_id);
+
+CREATE TABLE bound_messages(
+	message_id BIGINT PRIMARY KEY,
+	channel_id BIGINT NOT NULL,
+	-- this is NOT a foreign key because we need to delete bound messages when a page is deleted
+	page_id INTEGER NOT NULL
+);
+
+CREATE INDEX bound_messages_page_id_idx ON bound_messages (page_id);
 
 CREATE FUNCTION notify_page_edit() RETURNS TRIGGER AS $$ BEGIN
 	PERFORM * FROM pg_notify('page_edit', new.revision_id::text);
