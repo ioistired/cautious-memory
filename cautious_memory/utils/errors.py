@@ -20,6 +20,14 @@ class CautiousMemoryError(CommandError):
 	"""Generic error with the bot. This can be used to catch all bot errors."""
 	pass
 
+class BindingError(CautiousMemoryError, UserInputError):
+	"""Abstract error while dealing with a message binding."""
+	pass
+
+class BindingNotFoundError(BindingError):
+	def __init__(self):
+		super().__init__('No page is bound to that message.')
+
 class PageError(CautiousMemoryError, UserInputError):
 	"""Abstract error while dealing with a page."""
 	pass

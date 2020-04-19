@@ -72,5 +72,18 @@ class MessageBindingDatabase(commands.Cog):
 	async def bind(self, message: discord.Message, page_id):
 		await connection().execute(self.queries.bind(), message.channel.id, message.id, page_id)
 
+	@optional_connection
+	async def get_bound_page(self, message: discord.Message):
+		row = await connection().fetchrow(self.queries.get_bound_page(), message.id)
+		if row is None:
+			raise errors.BindingNotFoundError
+		return AttrDict(row)
+
+	@optional_connection
+	async def unbind(self, message: discord.Message):
+		"""Unbind a message. Return whether the message was successfully unbound."""
+		tag = await connection().execute(self.queries.unbind(), message.id)
+		return tag == 'DELETE 1'
+
 def setup(bot):
 	bot.add_cog(MessageBindingDatabase(bot))

@@ -21,3 +21,18 @@ VALUES ($1, $2, $3)
 ON CONFLICT (message_id) DO UPDATE
 	SET page_id = EXCLUDED.page_id
 -- :endmacro
+
+-- :macro get_bound_page()
+-- params: message_id
+SELECT pages.title, page_id
+FROM
+	bound_messages
+	INNER JOIN pages USING (page_id)
+WHERE message_id = $1
+-- :endmacro
+
+-- :macro unbind()
+-- params: message_id
+DELETE FROM bound_messages
+WHERE message_id = $1
+-- :endmacro
