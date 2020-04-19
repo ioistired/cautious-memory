@@ -52,8 +52,9 @@ CREATE FUNCTION permissions_for(
 		-- apply @everyone overwrites first since it's special
 		SELECT allow, deny
 		FROM page_permissions
-		WHERE entity = p_guild_id
-		AND page_id = p_page_id
+		WHERE
+			entity = p_guild_id
+			AND page_id = p_page_id
 		INTO v_allow, v_deny;
 
 		v_allow := coalesce(v_allow, 0);

@@ -44,8 +44,8 @@ CREATE TABLE revisions(
 	author BIGINT NOT NULL,
 	-- TODO bring this length limit down to match cogs/wiki/db.py
 	-- Doing so will require migrating a few existing pages
-	content NOT NULL VARCHAR(2000),
-	title NOT NULL VARCHAR(:title_length_limit),
+	content VARCHAR(2000) NOT NULL,
+	new_title VARCHAR(:title_length_limit),
 	revised TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
