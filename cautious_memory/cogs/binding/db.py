@@ -25,7 +25,7 @@ from ...utils import AttrDict, errors
 
 logger = logging.getLogger(__name__)
 
-class BoundMessagesDatabase(commands.Cog):
+class MessageBindingDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.queries = bot.queries('binding.sql')
@@ -68,5 +68,9 @@ class BoundMessagesDatabase(commands.Cog):
 			async for channel_id, message_id in connection().cursor(self.queries.bound_messages(), page_id):
 				yield channel_id, message_id
 
+	@optional_connection
+	async def bind(self, message: discord.Message, page_id):
+		await connection().execute(self.queries.bind(), message.channel.id, message.id, page_id)
+
 def setup(bot):
-	bot.add_cog(BoundMessagesDatabase(bot))
+	bot.add_cog(MessageBindingDatabase(bot))
