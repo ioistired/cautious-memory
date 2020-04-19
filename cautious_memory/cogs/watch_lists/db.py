@@ -42,7 +42,7 @@ class WatchListsDatabase(commands.Cog):
 			old, new = await self.get_revision_and_previous(revision_id)
 			guild = self.bot.get_guild(new.guild)
 			if guild is None:
-				logger.warning(f'on_page_edit: guild_id {new.guild} not found!')
+				logger.warning(f'on_cm_page_edit: guild_id {new.guild} not found!')
 				return
 
 			coros = []
@@ -68,7 +68,7 @@ class WatchListsDatabase(commands.Cog):
 	async def on_cm_page_delete(self, guild_id, page_id, title):
 		guild = self.bot.get_guild(guild_id)
 		if guild is None:
-			logger.warning(f'on_page_edit: guild_id {guild_id} not found!')
+			logger.warning(f'on_cm_page_delete: guild_id {guild_id} not found!')
 			return
 
 		coros = []
