@@ -16,7 +16,7 @@ WHERE
 -- :endmacro
 
 -- :macro get_page_basic()
--- params: guild_id_title
+-- params: guild_id, title
 -- for when you don't need the revisions but still need to resolve aliases
 SELECT
 	pages.page_id, created, pages.title AS original,
