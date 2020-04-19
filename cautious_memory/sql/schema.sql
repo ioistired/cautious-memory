@@ -60,7 +60,7 @@ CREATE TABLE aliases(
 );
 
 CREATE UNIQUE INDEX aliases_uniq_idx ON aliases (lower(title), guild);
-CREATE INDEX aliases_name_trgm_idx ON pages USING GIN (title gin_trgm_ops);
+CREATE INDEX aliases_name_trgm_idx ON aliases USING GIN (title gin_trgm_ops);
 
 CREATE TABLE page_usage_history(
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
