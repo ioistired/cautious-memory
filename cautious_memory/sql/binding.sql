@@ -14,6 +14,16 @@ FROM bound_messages
 WHERE page_id = $1
 -- :endmacro
 
+-- :macro guild_bindings()
+-- params: guild_id
+SELECT title, page_id, channel_id, message_id
+FROM
+	bound_messages
+	INNER JOIN pages USING (page_id)
+WHERE pages.guild = $1
+ORDER BY page_id
+-- :endmacro
+
 -- :macro bind()
 -- params: channel_id, message_id, page_id
 INSERT INTO bound_messages (channel_id, message_id, page_id)

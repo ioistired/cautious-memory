@@ -48,9 +48,9 @@ class MessageBindingDatabase(commands.Cog):
 				return
 
 			coros = []
-			async for channel_id, message_id in self.bound_messages(revision.page_id):
+			async for binding in self.bound_messages(revision.page_id):
 				coros.append(self.bot.http.edit_message(
-					channel_id=channel_id, message_id=message_id, content=revision.content,
+					channel_id=binding.channel_id, message_id=binding.message_id, content=revision.content,
 				))
 
 		await asyncio.gather(*coros)
@@ -82,8 +82,15 @@ class MessageBindingDatabase(commands.Cog):
 	@optional_connection
 	async def bound_messages(self, page_id):
 		async with connection().transaction():
-			async for channel_id, message_id in connection().cursor(self.queries.bound_messages(), page_id):
-				yield channel_id, message_id
+			async for row in connection().cursor(self.queries.bound_messages(), page_id):
+				yield AttrDict(row)
+
+	@optional_connection
+	async def guild_bindings(self, guild_id):
+		"""Return all bound messages for guild_id."""
+		async with connection().transaction():
+			async for row in connection().cursor(self.queries.guild_bindings(), guild_id):
+				yield AttrDict(row)
 
 	@optional_connection
 	async def bind(self, message: discord.Message, page_id):

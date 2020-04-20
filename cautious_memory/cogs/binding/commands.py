@@ -1,10 +1,16 @@
+import asyncio
 import re
+import functools
+import operator
+import weakref
 
 import discord
 from discord.ext import commands
 from bot_bin.sql import connection
 
 from ..wiki.db import Permissions
+from ... import utils
+from ...utils import paginator as pages
 
 CHANNEL_MENTION_RE = re.compile('<#(\d+)>', re.ASCII)
 clean_content = commands.clean_content(use_nicknames=False)
@@ -18,7 +24,7 @@ class OwnMessageOrNewMessage(commands.Converter):
 				raise commands.UserInputError('Channel not found.')
 
 			try:
-				return await ch.send('\u200b')
+				return await ch.send('\N{zero width space}')
 			except discord.Forbidden:
 				raise commands.UserInputError(f"I can't send messages to {ch.mention}.")
 
@@ -79,6 +85,52 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 			)
 		else:
 			await m.add_reaction(self.bot.config['success_emojis'][True])
+
+	@commands.command()
+	async def bindings(self, ctx, *, title: clean_content = None):
+		"""List all the bindings for a page or this server.
+
+		If a title is provided list the bindings for that page.
+		Otherwise, list all bindings.
+		"""
+		if title is not None:
+			paginator = await self.page_bindings(ctx, title)
+		else:
+			paginator = await self.guild_bindings(ctx)
+
+		await paginator.begin()
+
+	async def page_bindings(self, ctx, title):
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			connection.set(conn)
+			page = await self.wiki_db.get_page(ctx.author, title, partial=True)
+			formatter = functools.partial(self.format_binding, ctx.guild.id)
+			entries = [formatter(b) async for b in self.db.bound_messages(page.page_id)]
+
+		if not entries:
+			raise commands.UserInputError(f'No bindings found for “{title}”.')
+
+		return pages.Pages(entries=entries, ctx=ctx, use_embed=True)
+
+	async def guild_bindings(self, ctx):
+		await self.wiki_db.check_permissions(ctx.author, Permissions.view)
+		entries = []
+		all_bindings = self.db.guild_bindings(ctx.guild.id)
+		formatter = functools.partial(self.format_binding, ctx.guild.id)
+		async for page_id, bindings in utils.agroupby(all_bindings, key=operator.attrgetter('page_id')):
+			entries.append((bindings[0].title, '\n'.join(map(formatter, bindings))))
+
+		if not entries:
+			raise commands.UserInputError('No bindings have been created in this server.')
+
+		return pages.FieldPages(entries=entries, ctx=ctx)
+
+	@staticmethod
+	def format_binding(guild_id, b):
+		return (
+			f'[<#{b.channel_id}> / {b.message_id}]'
+			f'({utils.message_url(guild_id, b.channel_id, b.message_id)})'
+		)
 
 def setup(bot):
 	bot.add_cog(MessageBinding(bot))

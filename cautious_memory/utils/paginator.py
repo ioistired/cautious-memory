@@ -40,6 +40,8 @@ class Pages:
 		Whether to delete the message when the user presses the stop button.
 	delete_message_on_timeout: bool
 		Whether to delete the message after the reaction timeout is reached.
+	use_embed: bool
+		Whether to display the entries in an embed.
 
 	Attributes
 	-----------
@@ -53,7 +55,7 @@ class Pages:
 		What to display above the embed.
 	"""
 	def __init__(self, ctx, *, entries, per_page=7, show_entry_count=True, timeout=120.0,
-		delete_message=True, delete_message_on_timeout=False, numbered=True,
+		delete_message=True, delete_message_on_timeout=False, numbered=True, use_embed=False,
 	):
 		self.bot = ctx.bot
 		self.entries = entries
@@ -71,6 +73,7 @@ class Pages:
 		self.timeout = timeout
 		self.delete_message = delete_message
 		self.delete_message_on_timeout = delete_message_on_timeout
+		self.use_embed = use_embed
 		self.numbered = numbered
 		self.text_message = None
 		self.reaction_emojis = collections.OrderedDict([
@@ -103,7 +106,7 @@ class Pages:
 		base = (page - 1) * self.per_page
 		return self.entries[base:base + self.per_page]
 
-	def get_content(self, entries, page, *, first=False):
+	def prepare_embed(self, entries, page, *, first=False):
 		p = []
 		if self.numbered:
 			for index, entry in enumerate(entries, 1 + ((page - 1) * self.per_page)):
@@ -118,20 +121,24 @@ class Pages:
 
 		if self.maximum_pages > 1:
 			if self.show_entry_count:
-				p.append(f'Page {page}⁄{self.maximum_pages} ({len(self.entries)} entries)')
+				footer = f'Page {page}⁄{self.maximum_pages} ({len(self.entries)} entries)'
 			else:
-				p.append(f'Page {page}⁄{self.maximum_pages}')
+				footer = f'Page {page}⁄{self.maximum_pages}'
 
-		return '\n'.join(p)
+			self.embed.set_footer(text=footer)
 
-	def get_embed(self, entries, page, *, first=False):
-		return None
+		self.embed.description = '\n'.join(p)
 
 	async def show_page(self, page, *, first=False):
 		self.current_page = page
 		entries = self.get_page(page)
-		content = self.get_content(entries, page, first=first)
-		embed = self.get_embed(entries, page, first=first)
+		self.prepare_embed(entries, page, first=first)
+		if self.use_embed:
+			content = None
+			embed = self.embed
+		else:
+			content = '\n'.join((self.embed.description, self.embed.footer))
+			embed = None
 
 		if not self.paginating:
 			return await self.channel.send(content=content, embed=embed)
