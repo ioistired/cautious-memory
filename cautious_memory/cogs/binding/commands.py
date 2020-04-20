@@ -34,6 +34,12 @@ class OwnMessageOrNewMessage(commands.Converter):
 		return m
 
 class MessageBinding(commands.Cog, name='Message Binding'):
+	"""These commands manage message binding, a nifty way to make a message
+	editable by anyone who can edit its corresponding page.
+
+	This is useful for rules channels, for example, where any moderator can edit the rules,
+	and the rules are displayed as a message in a read only channel.
+	"""
 	def __init__(self, bot):
 		self.bot = bot
 		self.db = bot.cogs['MessageBindingDatabase']
