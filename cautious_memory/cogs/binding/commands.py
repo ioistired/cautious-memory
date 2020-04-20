@@ -94,7 +94,7 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		else:
 			await m.add_reaction(self.bot.config['success_emojis'][True])
 
-	@commands.command()
+	@commands.command(aliases=['binds'])
 	async def bindings(self, ctx, *, title: clean_content = None):
 		"""List all the bindings for a page or this server.
 
