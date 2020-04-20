@@ -15,7 +15,7 @@ from ...utils import paginator as pages, errors
 CHANNEL_MENTION_RE = re.compile('<#(\d+)>', re.ASCII)
 clean_content = commands.clean_content(use_nicknames=False)
 
-class OwnMessageOrNewMessage(commands.Converter):
+class OwnMessageOrChannel(commands.Converter):
 	async def convert(self, ctx, arg):
 		m = CHANNEL_MENTION_RE.search(arg)
 		if m:
@@ -24,11 +24,7 @@ class OwnMessageOrNewMessage(commands.Converter):
 				raise commands.UserInputError('Channel not found.')
 
 			self._check_permissions(ctx, ch)
-
-			try:
-				return await ch.send('\N{zero width space}')
-			except discord.Forbidden:
-				raise commands.UserInputError(f"I can't send messages to {ch.mention}.")
+			return ch
 
 		m = await commands.MessageConverter().convert(ctx, arg)
 		self._check_permissions(ctx, m.channel)
@@ -55,7 +51,7 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		self.wiki_db = bot.cogs['WikiDatabase']
 
 	@commands.command(usage='<channel or message sent by the bot> <title>')
-	async def bind(self, ctx, message: OwnMessageOrNewMessage, *, title: clean_content):
+	async def bind(self, ctx, target: OwnMessageOrChannel, *, title: clean_content):
 		"""Bind a message to a page. Whenever the page is edited, the message will be edited too.
 
 		You can supply either a message that the bot has sent, or a #channel mention.
@@ -65,7 +61,17 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		If a binding already exists for the given message, it will be updated.
 		"""
 		page = await self.db.bind(ctx.author, message, title)
-		await message.edit(content=page.content)
+		if isinstance(target, discord.TextChannel):
+			try:
+				await target.send(page.content)
+			except discord.Forbidden:
+				raise commands.UserInputError("I can't send messages to that channel.")
+		else:
+			try:
+				await target.edit(content=page.content)
+			except discord.Forbidden:
+				raise commands.UserInput("I can't edit that message.")
+
 		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 	@commands.command()
