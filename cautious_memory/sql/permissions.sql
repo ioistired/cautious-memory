@@ -51,6 +51,12 @@ ON CONFLICT (entity) DO UPDATE SET
 	permissions = EXCLUDED.permissions
 -- :endmacro
 
+-- :macro delete_role_permissions()
+-- params: role_id
+DELETE FROM role_permissions
+WHERE entity = $1
+-- :endmacro
+
 -- :macro set_default_permissions()
 -- params: guild_id, Permissions.default.value
 INSERT INTO role_permissions(entity, permissions)

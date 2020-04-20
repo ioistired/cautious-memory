@@ -65,6 +65,10 @@ class PermissionsDatabase(commands.Cog):
 		self.bot = bot
 		self.queries = self.bot.queries('permissions.sql')
 
+	@commands.Cog.listener()
+	async def on_guild_role_delete(self, role):
+		await self.delete_role_permissions(role)
+
 	@optional_connection
 	async def permissions_for(self, member: discord.Member, title):
 		role_ids = [role.id for role in member.roles if role != member.guild.default_role]
@@ -103,6 +107,10 @@ class PermissionsDatabase(commands.Cog):
 	@optional_connection
 	async def set_role_permissions(self, role: discord.Role, perms: Permissions):
 		await connection().execute(self.queries.set_role_permissions(), role.id, perms.value)
+
+	@optional_connection
+	async def delete_role_permissions(self, role: discord.Role):
+		await connection().execute(self.queries.delete_role_permissions(), role.id)
 
 	@optional_connection
 	async def set_default_permissions(self, guild_id):
