@@ -33,7 +33,8 @@ class Permissions(enum.Flag):
 	edit	= 4
 	create	= 8
 	delete	= 16
-	manage_permissions = 32
+	manage_permissions	= 32
+	manage_bindings 	= 64
 	default = create | view | rename | edit
 
 	def __iter__(self):

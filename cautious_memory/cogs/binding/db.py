@@ -106,7 +106,7 @@ class MessageBindingDatabase(commands.Cog):
 	async def bind(self, member, message: discord.Message, title):
 		async with connection().transaction():
 			page = await self.wiki_db.get_page(member, title, check_permissions=False)
-			await self.wiki_db.check_permissions(member, Permissions.edit, title)
+			await self.wiki_db.check_permissions(member, Permissions.manage_bindings, title)
 			await connection().execute(self.queries.bind(), message.channel.id, message.id, page.page_id)
 		binding = page
 		binding.channel_id = message.channel.id
@@ -125,7 +125,7 @@ class MessageBindingDatabase(commands.Cog):
 		"""Unbind a message. Return whether the message was successfully unbound."""
 		async with connection().transaction():
 			page = await self.get_bound_page(message)
-			await self.wiki_db.check_permissions(member, Permissions.edit, page.title)
+			await self.wiki_db.check_permissions(member, Permissions.manage_bindings, page.title)
 			tag = await connection().execute(self.queries.unbind(), message.id)
 		return tag == 'DELETE 1'
 
