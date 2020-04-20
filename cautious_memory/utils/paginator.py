@@ -137,7 +137,8 @@ class Pages:
 			content = None
 			embed = self.embed
 		else:
-			content = '\n'.join((self.embed.description, self.embed.footer))
+			e = self.embed
+			content = '\n'.join((e.description, '' if e.footer.value is e.Empty else e.footer.value))
 			embed = None
 
 		if not self.paginating:
