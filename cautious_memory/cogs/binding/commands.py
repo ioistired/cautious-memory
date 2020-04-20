@@ -136,8 +136,8 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 	@staticmethod
 	def format_binding(guild_id, b):
 		return (
-			f'[<#{b.channel_id}> / {b.message_id}]'
-			f'({utils.message_url(guild_id, b.channel_id, b.message_id)})'
+			f'[{b.message_id}]({utils.message_url(guild_id, b.channel_id, b.message_id)})'
+			f' in <#{b.channel_id}>'
 		)
 
 def setup(bot):
