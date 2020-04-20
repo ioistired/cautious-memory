@@ -56,7 +56,7 @@ class WatchListsDatabase(commands.Cog):
 
 				try:
 					await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
-				except errors.MissingPermissionsError:
+				except errors.MissingPagePermissionsError:
 					return
 
 				coros.append(member.send(embed=self.page_edit_notification(member, old, new)))

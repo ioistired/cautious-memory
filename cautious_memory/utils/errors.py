@@ -24,6 +24,9 @@ class BindingError(CautiousMemoryError, UserInputError):
 	"""Abstract error while dealing with a message binding."""
 	pass
 
+class MissingBindingPermissionsError(BindingError):
+	pass
+
 class BindingNotFoundError(BindingError):
 	def __init__(self):
 		super().__init__('No page is bound to that message.')
@@ -41,7 +44,7 @@ class PageNotFoundError(PageError):
 		self.name = name
 		super().__init__(f'A page called “{name}” does not exist.')
 
-class MissingPermissionsError(PageError):
+class MissingPagePermissionsError(PageError):
 	"""Raised when the user tries to perform an action they do not have permissions for."""
 	def __init__(self, permissions_needed):
 		self.permissions_needed = permissions_needed

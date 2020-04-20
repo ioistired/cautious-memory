@@ -21,6 +21,7 @@ import discord
 from discord.ext import commands
 from bot_bin.sql import connection, optional_connection
 
+from ..wiki.db import Permissions
 from ...utils import AttrDict, errors
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 class MessageBindingDatabase(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.wiki_db = bot.cogs['WikiDatabase']
 		self.queries = bot.queries('binding.sql')
 
 	@commands.Cog.listener()
@@ -48,7 +50,7 @@ class MessageBindingDatabase(commands.Cog):
 				return
 
 			coros = []
-			async for binding in self.bound_messages(revision.page_id):
+			async for binding in self._bound_messages(revision.page_id):
 				coros.append(self.bot.http.edit_message(
 					channel_id=binding.channel_id, message_id=binding.message_id, content=revision.content,
 				))
@@ -66,7 +68,7 @@ class MessageBindingDatabase(commands.Cog):
 
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			coros = []
-			async for binding in self.bound_messages(page_id):
+			async for binding in self._bound_messages(page_id):
 				coros.append(self.bot.http.delete_message(channel_id=binding.channel_id, message_id=binding.message_id))
 			await self.delete_all_bindings(page_id)
 
@@ -80,21 +82,36 @@ class MessageBindingDatabase(commands.Cog):
 		return AttrDict(row)
 
 	@optional_connection
-	async def bound_messages(self, page_id):
+	async def bound_messages(self, member, title):
+		async with connection().transaction():
+			page = await self.wiki_db.get_page(member, title, partial=True)
+			async for row in self._bound_messages(page.page_id):
+				yield row
+
+	@optional_connection
+	async def _bound_messages(self, page_id):
 		async with connection().transaction():
 			async for row in connection().cursor(self.queries.bound_messages(), page_id):
 				yield AttrDict(row)
 
 	@optional_connection
-	async def guild_bindings(self, guild_id):
+	async def guild_bindings(self, member):
 		"""Return all bound messages for guild_id."""
 		async with connection().transaction():
-			async for row in connection().cursor(self.queries.guild_bindings(), guild_id):
+			await self.wiki_db.check_permissions(member, Permissions.view)
+			async for row in connection().cursor(self.queries.guild_bindings(), member.guild.id):
 				yield AttrDict(row)
 
 	@optional_connection
-	async def bind(self, message: discord.Message, page_id):
-		await connection().execute(self.queries.bind(), message.channel.id, message.id, page_id)
+	async def bind(self, member, message: discord.Message, title):
+		async with connection().transaction():
+			page = await self.wiki_db.get_page(member, title, check_permissions=False)
+			await self.wiki_db.check_permissions(member, Permissions.edit, title)
+			await connection().execute(self.queries.bind(), message.channel.id, message.id, page.page_id)
+		binding = page
+		binding.channel_id = message.channel.id
+		binding.message_id = message.id
+		return binding
 
 	@optional_connection
 	async def get_bound_page(self, message: discord.Message):
@@ -104,9 +121,12 @@ class MessageBindingDatabase(commands.Cog):
 		return AttrDict(row)
 
 	@optional_connection
-	async def unbind(self, message: discord.Message):
+	async def unbind(self, member, message: discord.Message):
 		"""Unbind a message. Return whether the message was successfully unbound."""
-		tag = await connection().execute(self.queries.unbind(), message.id)
+		async with connection().transaction():
+			page = await self.get_bound_page(message)
+			await self.wiki_db.check_permissions(member, Permissions.edit, page.title)
+			tag = await connection().execute(self.queries.unbind(), message.id)
 		return tag == 'DELETE 1'
 
 	@optional_connection

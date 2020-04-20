@@ -10,7 +10,7 @@ from bot_bin.sql import connection
 
 from ..wiki.db import Permissions
 from ... import utils
-from ...utils import paginator as pages
+from ...utils import paginator as pages, errors
 
 CHANNEL_MENTION_RE = re.compile('<#(\d+)>', re.ASCII)
 clean_content = commands.clean_content(use_nicknames=False)
@@ -23,15 +23,24 @@ class OwnMessageOrNewMessage(commands.Converter):
 			if ch is None:
 				raise commands.UserInputError('Channel not found.')
 
+			self._check_permissions(ctx, ch)
+
 			try:
 				return await ch.send('\N{zero width space}')
 			except discord.Forbidden:
 				raise commands.UserInputError(f"I can't send messages to {ch.mention}.")
 
 		m = await commands.MessageConverter().convert(ctx, arg)
+		self._check_permissions(ctx, m.channel)
 		if m.author != ctx.bot.user:
 			raise commands.UserInputError('A message sent by the bot is required.')
 		return m
+
+	def _check_permissions(self, ctx, channel):
+		if not channel.permissions_for(ctx.author).send_messages:
+			raise errors.MissingBindingPermissionsError(
+				'You must be able to send messages in that channel to bind to it.'
+			)
 
 class MessageBinding(commands.Cog, name='Message Binding'):
 	"""These commands manage message binding, a nifty way to make a message
@@ -55,22 +64,14 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 
 		If a binding already exists for the given message, it will be updated.
 		"""
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			connection.set(conn)
-			page = await self.wiki_db.get_page(ctx.author, title)
-			await self.db.bind(message, page.page_id)
+		page = await self.db.bind(ctx.author, message, title)
 		await message.edit(content=page.content)
 		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 	@commands.command()
 	async def unbind(self, ctx, message: commands.MessageConverter):
 		"""Delete a message binding."""
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			connection.set(conn)
-			page = await self.db.get_bound_page(message)
-			await self.wiki_db.check_permissions(ctx.author, Permissions.delete, page.title)
-			await self.db.unbind(message)
-
+		await self.db.unbind(ctx.author, message)
 		await ctx.message.add_reaction(self.bot.config['success_emojis'][True])
 
 		await ctx.send('Would you like to delete the bound message as well? y/n')
@@ -109,11 +110,8 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		await paginator.begin()
 
 	async def page_bindings(self, ctx, title):
-		async with self.bot.pool.acquire() as conn, conn.transaction():
-			connection.set(conn)
-			page = await self.wiki_db.get_page(ctx.author, title, partial=True)
-			formatter = functools.partial(self.format_binding, ctx.guild.id)
-			entries = [formatter(b) async for b in self.db.bound_messages(page.page_id)]
+		formatter = functools.partial(self.format_binding, ctx.guild.id)
+		entries = [formatter(b) async for b in self.db.bound_messages(ctx.author, title)]
 
 		if not entries:
 			raise commands.UserInputError(f'No bindings found for “{title}”.')
@@ -121,9 +119,8 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		return pages.Pages(entries=entries, ctx=ctx, use_embed=True)
 
 	async def guild_bindings(self, ctx):
-		await self.wiki_db.check_permissions(ctx.author, Permissions.view)
 		entries = []
-		all_bindings = self.db.guild_bindings(ctx.guild.id)
+		all_bindings = self.db.guild_bindings(ctx.author)
 		formatter = functools.partial(self.format_binding, ctx.guild.id)
 		async for page_id, bindings in utils.agroupby(all_bindings, key=operator.attrgetter('page_id')):
 			entries.append((bindings[0].title, '\n'.join(map(formatter, bindings))))

@@ -253,7 +253,7 @@ class WikiDatabase(commands.Cog):
 			actual_perms = await self.permissions_db.permissions_for(member, title)
 		if required_permissions in actual_perms or await self.bot.is_privileged(member):
 			return True
-		raise errors.MissingPermissionsError(required_permissions)
+		raise errors.MissingPagePermissionsError(required_permissions)
 
 	@optional_connection
 	async def log_page_use(self, guild_id, title):

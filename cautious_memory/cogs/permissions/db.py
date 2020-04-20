@@ -26,7 +26,7 @@ from ...utils import errors
 
 class Permissions(enum.Flag):
 	# this class is the single source of truth for the permissions values
-	# so DO NOT change any of them, and make sure that new ones exceed the current maximum value!
+	# so DO NOT change any existing values, and make sure that new ones exceed the current maximum value!
 	none	= 0
 	view	= 1
 	rename	= 2
@@ -240,7 +240,7 @@ class PermissionsDatabase(commands.Cog):
 		if highest_role and role < highest_role:
 			return True
 
-		raise errors.MissingPermissionsError(Permissions.manage_permissions)
+		raise errors.MissingPagePermissionsError(Permissions.manage_permissions)
 
 	@optional_connection
 	async def check_permissions_for(self, member, title):
