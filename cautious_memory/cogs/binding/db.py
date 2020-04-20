@@ -66,8 +66,8 @@ class MessageBindingDatabase(commands.Cog):
 
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			coros = []
-			async for channel_id, message_id in self.bound_messages(page_id):
-				coros.append(self.bot.http.delete_message(channel_id=channel_id, message_id=message_id))
+			async for binding in self.bound_messages(page_id):
+				coros.append(self.bot.http.delete_message(channel_id=binding.channel_id, message_id=binding.message_id))
 			await self.delete_all_bindings(page_id)
 
 		await asyncio.gather(*coros, return_exceptions=True)
