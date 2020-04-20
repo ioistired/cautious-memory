@@ -52,6 +52,8 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 		You can supply either a message that the bot has sent, or a #channel mention.
 		Messages can be provided by ID, channel_id-message_id (obtained via shift clicking on "Copy ID"),
 		or by a link to the message.
+
+		If a binding already exists for the given message, it will be updated.
 		"""
 		async with self.bot.pool.acquire() as conn, conn.transaction():
 			connection.set(conn)
