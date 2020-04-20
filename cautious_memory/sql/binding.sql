@@ -36,3 +36,9 @@ WHERE message_id = $1
 DELETE FROM bound_messages
 WHERE message_id = $1
 -- :endmacro
+
+-- :macro delete_all_bindings()
+-- params: page_id
+DELETE FROM bound_messages
+WHERE page_id = $1
+-- :endmacro

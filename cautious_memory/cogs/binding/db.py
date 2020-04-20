@@ -55,6 +55,23 @@ class MessageBindingDatabase(commands.Cog):
 
 		await asyncio.gather(*coros)
 
+	@commands.Cog.listener()
+	async def on_cm_page_delete(self, guild_id, page_id, title):
+		if not self.bot.get_guild(guild_id):
+			logger.error(
+				'on_cm_page_delete: page %r (ID %s) is part of guild ID %s, which we are not in!',
+				title, page_id, guild_id,
+			)
+			return
+
+		async with self.bot.pool.acquire() as conn, conn.transaction():
+			coros = []
+			async for channel_id, message_id in self.bound_messages(page_id):
+				coros.append(self.bot.http.delete_message(channel_id=channel_id, message_id=message_id))
+			await self.delete_all_bindings(page_id)
+
+		await asyncio.gather(*coros, return_exceptions=True)
+
 	@optional_connection
 	async def get_revision(self, revision_id):
 		row = await connection().fetchrow(self.queries.get_revision(), revision_id)
@@ -84,6 +101,12 @@ class MessageBindingDatabase(commands.Cog):
 		"""Unbind a message. Return whether the message was successfully unbound."""
 		tag = await connection().execute(self.queries.unbind(), message.id)
 		return tag == 'DELETE 1'
+
+	@optional_connection
+	async def delete_all_bindings(self, page_id):
+		"""Return how many bindings were deleted."""
+		tag = await connection().execute(self.queries.delete_all_bindings(), page_id)
+		return int(tag.rsplit(None, 1)[-1])
 
 def setup(bot):
 	bot.add_cog(MessageBindingDatabase(bot))
