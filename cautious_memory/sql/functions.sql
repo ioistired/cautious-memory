@@ -1,4 +1,4 @@
--- Copyright © 2019 lambda#0987
+-- Copyright © 2019–2020 lambda#0987
 --
 -- Cautious Memory is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU Affero General Public License as published

@@ -46,7 +46,7 @@ $ rm migrate.sql
 
 ## [License](https://owo.codes/lambda/cautious-memory/blob/master/LICENSE)
 
-Copyright ©︎ 2019 lambda#0987
+Copyright ©︎ 2019–2020 lambda#0987
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
