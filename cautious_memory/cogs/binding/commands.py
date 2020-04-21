@@ -75,13 +75,23 @@ class MessageBinding(commands.Cog, name='Message Binding'):
 
 		If a binding already exists for the given message, it will be updated.
 		"""
-		page = await self.db.bind(ctx.author, message, title)
 		if isinstance(target, discord.TextChannel):
-			try:
-				await target.send(page.content)
-			except discord.Forbidden:
-				raise commands.UserInputError("I can't send messages to that channel.")
+			async with self.bot.pool.acquire() as conn, conn.transaction():
+				connection.set(conn)
+				# I really don't like this design as it requires me to look up the page by title three times
+				# Probably some more thought has to go into the separation of concerns between
+				# the DB cogs and the Commands cogs.
+				await self.wiki_db.check_permissions(ctx.author, Permissions.manage_bindings, title)
+				page = await self.wiki_db.get_page(ctx.author, title)
+
+				try:
+					message = await target.send(page.content)
+				except discord.Forbidden:
+					raise commands.UserInputError("I can't send messages to that channel.")
+
+				await self.db.bind(ctx.author, message, title, check_permissions=False)
 		else:
+			page = await self.db.bind(ctx.author, target, title)
 			try:
 				await target.edit(content=page.content)
 			except discord.Forbidden:

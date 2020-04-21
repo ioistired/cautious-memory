@@ -103,10 +103,11 @@ class MessageBindingDatabase(commands.Cog):
 				yield AttrDict(row)
 
 	@optional_connection
-	async def bind(self, member, message: discord.Message, title):
+	async def bind(self, member, message: discord.Message, title, *, check_permissions=True):
 		async with connection().transaction():
 			page = await self.wiki_db.get_page(member, title, check_permissions=False)
-			await self.wiki_db.check_permissions(member, Permissions.manage_bindings, title)
+			if check_permissions:
+				await self.wiki_db.check_permissions(member, Permissions.manage_bindings, title)
 			await connection().execute(self.queries.bind(), message.channel.id, message.id, page.page_id)
 		binding = page
 		binding.channel_id = message.channel.id
