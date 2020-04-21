@@ -359,10 +359,8 @@ class TextPages(Pages):
     def get_page(self, page):
         return self.entries[page - 1]
 
-    def get_embed(self, entries, page, *, first=False):
-        return None
-
-    def get_content(self, entry, page, *, first=False):
+    def prepare_embed(self, entry, page, *, first=False):
         if self.maximum_pages > 1:
-            return f'{entry}\nPage {page}/{self.maximum_pages}'
-        return entry
+            self.embed.description = f'{entry}\nPage {page}/{self.maximum_pages}'
+        else:
+            self.embed.description = entry
