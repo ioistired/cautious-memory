@@ -188,7 +188,7 @@ class WikiDatabase(commands.Cog):
 		self.check_title(title)
 		self.check_content(new_content)
 
-		async with connection().transaction():
+		async with connection().transaction(isolation='serializable'):
 			await self.check_permissions(member, Permissions.edit, title)
 
 			page = await connection().fetchrow(self.queries.get_page_basic(), member.guild.id, title)

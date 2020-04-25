@@ -56,6 +56,21 @@ ADD CONSTRAINT pages_latest_revision_id_fkey
 FOREIGN KEY (latest_revision_id)
 REFERENCES revisions DEFERRABLE INITIALLY DEFERRED;
 
+CREATE FUNCTION garbage_collect_contents() RETURNS TRIGGER AS $$ BEGIN
+	DELETE FROM contents WHERE content_id IN (
+		SELECT o.content_id FROM OLD o WHERE NOT EXISTS (
+			SELECT FROM revisions r
+			WHERE o.content_id = r.content_id
+		)
+	);
+	RETURN NULL;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER garbage_collect_contents
+AFTER DELETE ON revisions
+REFERENCING OLD TABLE AS OLD
+EXECUTE PROCEDURE garbage_collect_contents();
+
 CREATE TABLE aliases (
 	title VARCHAR(:title_length_limit) NOT NULL,
 	page_id INTEGER NOT NULL REFERENCES pages ON DELETE CASCADE,
