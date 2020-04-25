@@ -41,11 +41,11 @@ class MessageBindingDatabase(commands.Cog):
 				logger.error('on_cm_page_edit: revision ID %s not found!', revision_id)
 				return
 
-			if not self.bot.get_guild(revision.guild):
+			if not self.bot.get_guild(revision.guild_id):
 				logger.error(
 					'on_cm_page_edit: page ID %s is part of guild ID %s, which we are not in!',
 					revision.page_id,
-					revision.guild,
+					revision.guild_id,
 				)
 				return
 

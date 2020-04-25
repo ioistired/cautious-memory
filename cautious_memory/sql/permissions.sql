@@ -97,7 +97,7 @@ WHERE page_id = $1 AND entity = $2
 
 -- :macro set_page_overwrites()
 -- params: guild_id, title, entity_id, allowed_perms, denied_perms
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+WITH page_id AS (SELECT page_id FROM pages WHERE guild_id = $1 AND lower(title) = lower($2))
 INSERT INTO page_permissions (page_id, entity, allow, deny)
 VALUES ((SELECT * FROM page_id), $3, $4, $5)
 ON CONFLICT (page_id, entity) DO UPDATE SET
@@ -107,7 +107,7 @@ ON CONFLICT (page_id, entity) DO UPDATE SET
 
 -- :macro unset_page_overwrites()
 -- params: guild_id, title, entity_id
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+WITH page_id AS (SELECT page_id FROM pages WHERE guild_id = $1 AND lower(title) = lower($2))
 DELETE FROM page_permissions
 WHERE
 	page_id = (SELECT * FROM page_id)
@@ -116,7 +116,7 @@ WHERE
 
 -- :macro add_page_permissions()
 -- params: guild_id, title, entity_id, new_allow_perms, new_deny_perms
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+WITH page_id AS (SELECT page_id FROM pages WHERE guild_id = $1 AND lower(title) = lower($2))
 INSERT INTO page_permissions (page_id, entity, allow, deny)
 VALUES ((SELECT * FROM page_id), $3, $4, $5)
 ON CONFLICT (page_id, entity) DO UPDATE SET
@@ -127,7 +127,7 @@ RETURNING allow, deny
 
 -- :macro unset_page_permissions()
 -- params: guild_id, title, entity_id, perms
-WITH page_id AS (SELECT page_id FROM pages WHERE guild = $1 AND lower(title) = lower($2))
+WITH page_id AS (SELECT page_id FROM pages WHERE guild_id = $1 AND lower(title) = lower($2))
 UPDATE page_permissions SET
 	allow = allow & ~$4::INTEGER,
 	deny = deny & ~$4::INTEGER
@@ -139,5 +139,5 @@ RETURNING allow, deny
 -- params: guild_id, title
 SELECT page_id
 FROM aliases RIGHT JOIN pages USING (page_id)
-WHERE pages.guild = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
+WHERE pages.guild_id = $1 AND (lower(aliases.title) = lower($2) OR lower(pages.title) = lower($2))
 -- :endmacro

@@ -380,14 +380,14 @@ class Wiki(commands.Cog):
 					'One or more provided revision IDs were invalid. '
 					f'Use the {ctx.prefix}history command to get valid revision IDs.')
 				return
-			await self.db.check_permissions(ctx.author, Permissions.edit, new.title)
+			await self.db.check_permissions(ctx.author, Permissions.edit, new.current_title)
 
 		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
 
 	@classmethod
 	def diff(cls, guild, old, new):
 		# wew this was hard to get right
-		if new.old_title != old.title or new.title != old.title:
+		if new.prev_title != old.title or new.title != old.title:
 			return cls.renamed_revision_summary(guild, new, old_title=old.title)
 
 		if old.page_id != new.page_id:
@@ -407,7 +407,7 @@ class Wiki(commands.Cog):
 
 	@classmethod
 	def revision_summary(cls, guild, revision):
-		author = cls.format_member(guild, revision.author)
+		author = cls.format_member(guild, revision.author_id)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		title = (
 			f'“{revision.current_title}”'
@@ -417,7 +417,7 @@ class Wiki(commands.Cog):
 
 	@classmethod
 	def renamed_revision_summary(cls, guild, revision, *, old_title):
-		author = cls.format_member(guild, revision.author)
+		author = cls.format_member(guild, revision.author_id)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		return f'“{old_title}” was renamed to “{revision.title}” by {author_at} with no changes'
 

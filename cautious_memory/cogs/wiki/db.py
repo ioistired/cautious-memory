@@ -153,7 +153,7 @@ class WikiDatabase(commands.Cog):
 		self.check_title(title)
 		self.check_content(content)
 
-		async with connection().transaction():
+		async with connection().transaction(isolation='serializable'):
 			await self.check_permissions(member, Permissions.create)
 			if await connection().fetchrow(self.queries.get_alias(), member.guild.id, title):
 				raise errors.PageExistsError
@@ -163,7 +163,8 @@ class WikiDatabase(commands.Cog):
 			except asyncpg.UniqueViolationError:
 				raise errors.PageExistsError
 
-			await connection().execute(self.queries.create_first_revision(), page_id, member.id, content, title)
+			content_id = await connection().fetchval(self.queries.create_content(), content)
+			await connection().execute(self.queries.create_first_revision(), page_id, member.id, content_id, title)
 
 	@optional_connection
 	async def alias_page(self, member, alias_title, target_title):
@@ -194,7 +195,14 @@ class WikiDatabase(commands.Cog):
 			if page is None:
 				raise errors.PageNotFoundError(title)
 
-			await connection().execute(self.queries.create_revision(), page['page_id'], member.id, new_content)
+			content_id = await connection().fetchval(self.queries.create_content(), new_content)
+			await connection().execute(
+				self.queries.create_revision(),
+				page['page_id'],
+				member.id,
+				page['original_title'],
+				content_id,
+			)
 
 			if page['alias']:
 				return page['original']
@@ -203,7 +211,7 @@ class WikiDatabase(commands.Cog):
 	async def rename_page(self, member, title, new_title):
 		self.check_title(new_title)
 
-		async with connection().transaction():
+		async with connection().transaction(isolation='serializable'):
 			await self.ensure_title_available(member, new_title)
 
 			try:
@@ -214,7 +222,8 @@ class WikiDatabase(commands.Cog):
 			if page_id is None:
 				raise errors.PageNotFoundError(title)
 
-			await connection().execute(self.queries.log_page_rename(), page_id, member.id, new_title)
+			content_id = await connection().fetchval(self.queries.get_content_id(), page_id)
+			await connection().execute(self.queries.log_page_rename(), page_id, member.id, content_id, new_title)
 
 	@optional_connection
 	async def delete_page(self, member, title) -> bool:

@@ -40,15 +40,15 @@ class WatchListsDatabase(commands.Cog):
 	async def on_cm_page_edit(self, revision_id):
 		async with connection().transaction():
 			old, new = await self.get_revision_and_previous(revision_id)
-			guild = self.bot.get_guild(new.guild)
+			guild = self.bot.get_guild(new.guild_id)
 			if guild is None:
-				logger.warning(f'on_cm_page_edit: guild_id {new.guild} not found!')
+				logger.warning(f'on_cm_page_edit: guild_id {new.guild_id} not found!')
 				return
 
 			coros = []
-			async for user_id in self.page_subscribers(new.page_id):
+			for user_id in await self.page_subscribers(new.page_id):
 				# editing a page you subscribe to should not notify yourself
-				if user_id == new.author:
+				if user_id == new.author_id:
 					continue
 
 				member = guild.get_member(user_id)
@@ -72,7 +72,7 @@ class WatchListsDatabase(commands.Cog):
 			return
 
 		coros = []
-		async for user_id in self.page_subscribers(page_id):
+		for user_id in await self.page_subscribers(page_id):
 			member = guild.get_member(user_id)
 			if member is None: continue
 			coros.append(member.send(embed=self.page_delete_notification(guild, title)))
@@ -85,7 +85,7 @@ class WatchListsDatabase(commands.Cog):
 		embed.color = self.NOTIFICATION_EMBED_COLOR
 		embed.set_footer(text='Edited')
 		embed.timestamp = new.revised
-		author = member.guild.get_member(new.author)
+		author = member.guild.get_member(new.author_id)
 		if author is not None:
 			embed.set_author(name=author.name, icon_url=author.avatar_url_as(static_format='png', size=64))
 		try:
@@ -129,9 +129,7 @@ class WatchListsDatabase(commands.Cog):
 
 	@optional_connection
 	async def page_subscribers(self, page_id):
-		async with connection().transaction():
-			async for user_id, in connection().cursor(self.queries.page_subscribers(), page_id):
-				yield user_id
+		return [user_id for user_id, in await connection().fetch(self.queries.page_subscribers(), page_id)]
 
 	@optional_connection
 	async def delete_page_subscribers(self, page_id):

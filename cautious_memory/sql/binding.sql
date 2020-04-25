@@ -15,10 +15,11 @@
 
 -- :macro get_revision()
 -- params: revision_id
-SELECT revisions.content, pages.guild, page_id
+SELECT content, pages.guild_id, page_id
 FROM
 	revisions
 	INNER JOIN pages USING (page_id)
+	INNER JOIN contents USING (content_id)
 WHERE revision_id = $1
 -- :endmacro
 
@@ -35,7 +36,7 @@ SELECT title, page_id, channel_id, message_id
 FROM
 	bound_messages
 	INNER JOIN pages USING (page_id)
-WHERE pages.guild = $1
+WHERE pages.guild_id = $1
 ORDER BY page_id
 -- :endmacro
 

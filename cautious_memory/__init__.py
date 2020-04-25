@@ -74,13 +74,24 @@ class CautiousMemory(Bot):
 
 	async def init_listener(self):
 		self.listener_conn = await asyncpg.connect(**self.config['database'])
+		self.listener_conn_callbacks = []
+
+		def listener(func):
+			channel_name = func.__name__[len('on_'):]
+			self.listener_conn_callbacks.append((channel_name, func))
+
+			return func
+
+		@listener
 		def on_page_edit(connection, pid, channel, revision_id):
 			# convert an asyncpg event into a discord event
 			self.dispatch('cm_page_edit', int(revision_id))
+
+		@listener
 		def on_page_delete(connection, pid, channel, payload):
 			guild_id, page_id, title = payload.split(',', 2)
 			self.dispatch('cm_page_delete', int(guild_id), int(page_id), title)
-		self.listener_conn_callbacks = [('page_edit', on_page_edit), ('page_delete', on_page_delete)]
+
 		for channel, callback in self.listener_conn_callbacks:
 			await self.listener_conn.add_listener(channel, callback)
 
