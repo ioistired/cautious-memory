@@ -15,8 +15,8 @@
 		},
 	},
 
-	# related to your instance of https://owo.codes/lambda/cautious-memory-api
-	# if this dict is left empty, the API related commands will be disabled.
+	// related to your instance of https://owo.codes/lambda/cautious-memory-api
+	// if this dict is left empty, the API related commands will be disabled.
 	api: {
 		docs_url: '...',
 	},
