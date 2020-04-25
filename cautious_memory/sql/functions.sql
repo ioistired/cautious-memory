@@ -13,14 +13,6 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE FUNCTION coalesce_agg_statefunc(state anyelement, value anyelement) RETURNS anyelement AS $$
-	SELECT coalesce(value, state); $$
-LANGUAGE SQL;
-
-CREATE AGGREGATE coalesce_agg(anyelement) (
-	SFUNC = coalesce_agg_statefunc,
-	STYPE = anyelement);
-
 CREATE FUNCTION permissions_for(
 	p_page_id pages.page_id%TYPE,
 	p_member_id BIGINT,
