@@ -205,7 +205,7 @@ class WikiDatabase(commands.Cog):
 			)
 
 			if page['alias']:
-				return page['original']
+				return page['original_title']
 
 	@optional_connection
 	async def rename_page(self, member, title, new_title):
