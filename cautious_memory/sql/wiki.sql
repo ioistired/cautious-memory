@@ -82,7 +82,9 @@ WHERE EXISTS (
 
 -- :macro get_page_revisions()
 -- params: guild_id, title
-SELECT page_id, revision_id, author_id, content, revised, pages.title AS current_title, revisions.title
+SELECT
+	page_id, revision_id, author_id, content, revised, pages.title AS current_title, revisions.title,
+	lag(revision_id) OVER (PARTITION BY page_id ORDER BY revision_id) IS NULL AS first
 FROM
 	pages
 	INNER JOIN revisions USING (page_id)
@@ -108,7 +110,9 @@ ORDER BY lower(title) ASC
 
 -- :macro get_recent_revisions()
 -- params: guild_id, cutoff
-SELECT pages.title AS current_title, revision_id, page_id, author_id, revised, revisions.title
+SELECT
+	pages.title AS current_title, revision_id, page_id, author_id, revised, revisions.title,
+	lag(revision_id) OVER (PARTITION BY page_id ORDER BY revision_id) IS NULL AS first
 FROM revisions INNER JOIN pages USING (page_id)
 WHERE guild_id = $1 AND revised > $2
 ORDER BY revised DESC
@@ -138,15 +142,17 @@ WITH all_revisions AS (
 	SELECT
 		page_id, revision_id, author_id, content, revised, pages.title AS current_title,
 		revisions.title AS title,
-		lag(revisions.title) OVER (
-			PARTITION BY page_id
-			ORDER BY revision_id
-			ROWS 1 PRECEDING) AS prev_title
+		lag(revisions.title) OVER w AS prev_title,
+		lag(revision_id) OVER w IS NULL AS first
 	FROM
 		pages
 		INNER JOIN revisions USING (page_id)
 		INNER JOIN contents USING (content_id)
-	WHERE guild_id = $1)
+	WHERE guild_id = $1
+	WINDOW w AS (
+		PARTITION BY page_id
+		ORDER BY revision_id
+		ROWS 1 PRECEDING))
 -- using an outer query here prevents prematurely filtering the window funcs above to the selected revision IDs
 SELECT *
 FROM all_revisions

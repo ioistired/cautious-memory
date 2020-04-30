@@ -413,7 +413,8 @@ class Wiki(commands.Cog):
 			f'“{revision.current_title}”'
 			if revision.title == revision.current_title or revision.title is None
 			else f'“{revision.current_title}” (then called “{revision.title}”)')
-		return f'#{revision.revision_id}) {title} was revised by {author_at}'
+		verb = 'created' if revision.first else 'revised'
+		return f'#{revision.revision_id}) {title} was {verb} by {author_at}'
 
 	@classmethod
 	def renamed_revision_summary(cls, guild, revision, *, old_title):
