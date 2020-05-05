@@ -318,7 +318,7 @@ LIMIT 3
 SELECT author_id AS id, count(revision_id) AS count
 FROM revisions INNER JOIN pages USING (page_id)
 WHERE guild_id = $1 AND revised > $2
-GROUP BY author
+GROUP BY author_id
 ORDER BY count DESC
 LIMIT 3
 -- :endmacro
