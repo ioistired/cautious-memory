@@ -1,4 +1,4 @@
-# Copyright © 2019 lambda#0987
+# Copyright © 2019–2020 lambda#0987
 #
 # Cautious Memory is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -21,6 +21,7 @@ from bot_bin.misc import natural_join
 from discord.ext import commands
 
 from .db import Permissions
+from ...utils.converter import QueriedMember
 
 # see reasoning in cogs.wiki.commands
 clean_content = commands.clean_content(use_nicknames=False)
@@ -34,7 +35,7 @@ class RoleOrEveryone(commands.Converter):
 				return ctx.guild.default_role
 			raise
 
-Entity = typing.Union[RoleOrEveryone, discord.Member]
+Entity = typing.Union[RoleOrEveryone, QueriedMember]
 
 class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	"""Commands that let you manage the permissions on pages.

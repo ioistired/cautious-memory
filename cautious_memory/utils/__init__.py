@@ -1,4 +1,4 @@
-# Copyright © 2019 lambda#0987
+# Copyright © 2019–2020 lambda#0987
 #
 # Cautious Memory is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -32,6 +32,8 @@ from typing import (
 
 import braceexpand
 import discord
+
+from . import converter
 
 R = TypeVar('R')
 T = TypeVar('T')
@@ -78,6 +80,14 @@ async def maybe_await(x):
 		return await x
 	else:
 		return x
+
+async def fetch_member(guild, user_id):
+	member = guild.get_member(user_id)
+	if member is not None:
+		return member
+	member = await guild.fetch_member(user_id)
+	guild._add_member(member)
+	return member
 
 # agroupby modified from groupby in aioitertools @ 14f5faa7edb614de1287da6bc9c49226e14cfc1d
 # Copyright (c) 2018 John Reese

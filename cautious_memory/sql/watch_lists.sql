@@ -57,10 +57,8 @@ WHERE page_id = $1
 SELECT
 	guild_id, page_id, revision_id, author_id, content, revised, pages.title AS current_title,
 	pages.title,
-	lag(revisions.title) OVER (
-		PARTITION BY page_id
-		ORDER BY revision_id
-		ROWS 1 PRECEDING) AS prev_title
+	lag(revisions.title) OVER w AS prev_title,
+	lag(revision_id) OVER w IS NULL AS first
 FROM
 	pages
 	INNER JOIN revisions USING (page_id)
@@ -68,6 +66,10 @@ FROM
 WHERE
 	page_id = (SELECT page_id FROM revisions WHERE revision_id = $1)
 	AND revision_id <= $1
+WINDOW w AS (
+	PARTITION BY page_id
+	ORDER BY revision_id
+	ROWS 1 PRECEDING)
 ORDER BY revision_id DESC
 LIMIT 2
 -- :endmacro

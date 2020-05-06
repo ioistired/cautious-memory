@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
+import contextlib
 import datetime
 import difflib
 import io
@@ -228,7 +229,7 @@ class Wiki(commands.Cog):
 		cutoff = datetime.datetime.utcnow() - cutoff_delta
 
 		entries = [
-			self.revision_summary(ctx.guild, revision)
+			self.revision_summary(revision)
 			async for revision in self.db.get_recent_revisions(ctx.author, cutoff)]
 
 		if not entries:
@@ -328,7 +329,7 @@ class Wiki(commands.Cog):
 				return
 
 			entries = [
-				self.revision_summary(ctx.guild, revision)
+				self.revision_summary(revision)
 				async for revision in self.db.get_page_revisions(ctx.author, title)]
 
 		if not entries:
@@ -382,10 +383,16 @@ class Wiki(commands.Cog):
 				return
 			await self.db.check_permissions(ctx.author, Permissions.edit, new.current_title)
 
+		with contextlib.suppress(discord.NotFound):
+			old.author = await utils.fetch_member(guild, old.author_id)
+
+		with contextlib.suppres(discord.NotFound):
+			new.author = await utils.fetch_member(guild, new.author_id)
+
 		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
 
 	@classmethod
-	def diff(cls, guild, old, new):
+	def diff(cls, old, new):
 		# wew this was hard to get right
 		if new.prev_title != old.title or new.title != old.title:
 			return cls.renamed_revision_summary(guild, new, old_title=old.title)
@@ -396,8 +403,8 @@ class Wiki(commands.Cog):
 		diff = list(difflib.unified_diff(
 			old.content.splitlines(),
 			new.content.splitlines(),
-			fromfile=cls.revision_summary(guild, old),
-			tofile=cls.revision_summary(guild, new),
+			fromfile=cls.revision_summary(old),
+			tofile=cls.revision_summary(new),
 			lineterm=''))
 
 		if not diff:
@@ -406,25 +413,25 @@ class Wiki(commands.Cog):
 		return '```diff\n' + '\n'.join(map(utils.escape_code_blocks, diff)) + '```'
 
 	@classmethod
-	def revision_summary(cls, guild, revision):
-		author = cls.format_member(guild, revision.author_id)
+	def revision_summary(cls, revision):
+		author = cls.format_author(revision)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		title = (
 			f'“{revision.current_title}”'
-			if revision.title == revision.current_title or revision.title is None
+			if revision.title == revision.current_title
 			else f'“{revision.current_title}” (then called “{revision.title}”)')
 		verb = 'created' if revision.first else 'revised'
 		return f'#{revision.revision_id}) {title} was {verb} by {author_at}'
 
 	@classmethod
-	def renamed_revision_summary(cls, guild, revision, *, old_title):
-		author = cls.format_member(guild, revision.author_id)
+	def renamed_revision_summary(cls, revision, *, old_title):
+		author = cls.format_author(revision)
 		author_at = f'{author} at {utils.format_datetime(revision.revised)}'
 		return f'“{old_title}” was renamed to “{revision.title}” by {author_at} with no changes'
 
-	@classmethod
-	def format_member(cls, guild, member_id):
-		return guild.get_member(member_id) or f'unknown user with ID {member_id}'
+	@staticmethod
+	def format_author(revision):
+		return revision.author or f'unknown user with ID {revision.author_id}'
 
 def setup(bot):
 	bot.add_cog(Wiki(bot))

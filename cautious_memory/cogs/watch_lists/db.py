@@ -14,6 +14,7 @@
 # along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+import contextlib
 import datetime as dt
 import logging
 
@@ -22,6 +23,7 @@ from discord.ext import commands
 from bot_bin.sql import connection, optional_connection
 
 from ..permissions.db import Permissions
+from ... import utils
 from ...utils import AttrDict, errors
 
 logger = logging.getLogger(__name__)
@@ -45,23 +47,30 @@ class WatchListsDatabase(commands.Cog):
 				logger.warning(f'on_cm_page_edit: guild_id {new.guild_id} not found!')
 				return
 
-			coros = []
-			for user_id in await self.page_subscribers(new.page_id):
+			async def send(user_id):
 				# editing a page you subscribe to should not notify yourself
 				if user_id == new.author_id:
-					continue
-
-				member = guild.get_member(user_id)
-				if member is None: continue
+					return
 
 				try:
-					await self.wiki_db.check_permissions(member, Permissions.view, new.current_title)
+					recipient = await utils.fetch_member(guild, user_id)
+				except discord.NotFound:
+					return
+
+				try:
+					await self.wiki_db.check_permissions(recipient, Permissions.view, new.current_title)
 				except errors.MissingPagePermissionsError:
 					return
 
-				coros.append(member.send(embed=self.page_edit_notification(member, old, new)))
+				with contextlib.suppress(discord.NotFound):
+					new.author = await utils.fetch_member(guild, new.author_id)
 
-			await asyncio.gather(*coros)
+				with contextlib.suppress(discord.NotFound):
+					old.author = await utils.fetch_member(guild, old.author_id)
+
+				await recipient.send(embed=self.page_edit_notification(recipient, old, new))
+
+			await asyncio.gather(*map(send, await self.page_subscribers(new.page_id)))
 
 	@commands.Cog.listener()
 	@optional_connection
@@ -71,25 +80,27 @@ class WatchListsDatabase(commands.Cog):
 			logger.warning(f'on_cm_page_delete: guild_id {guild_id} not found!')
 			return
 
-		coros = []
-		for user_id in await self.page_subscribers(page_id):
-			member = guild.get_member(user_id)
-			if member is None: continue
-			coros.append(member.send(embed=self.page_delete_notification(guild, title)))
-		await asyncio.gather(*coros)
+		async def send(user_id):
+			try:
+				member = await utils.fetch_member(guild, user_id)
+			except discord.NotFound:
+				return
+
+			await member.send(embed=self.page_delete_notification(guild, title))
+
+		await asyncio.gather(*map(send, await self.page_subscribers(page_id)))
 		await self.delete_page_subscribers(page_id)
 
-	def page_edit_notification(self, member, old, new):
+	def page_edit_notification(self, recipient, old, new):
 		embed = discord.Embed()
-		embed.title = f'Page “{new.current_title}” was edited in server {member.guild}'
+		embed.title = f'Page “{new.current_title}” was edited in server {recipient.guild}'
 		embed.color = self.NOTIFICATION_EMBED_COLOR
 		embed.set_footer(text='Edited')
 		embed.timestamp = new.revised
-		author = member.guild.get_member(new.author_id)
-		if author is not None:
-			embed.set_author(name=author.name, icon_url=author.avatar_url_as(static_format='png', size=64))
+		if new.author is not None:
+			embed.set_author(name=new.author.name, icon_url=new.author.avatar_url_as(static_format='png', size=64))
 		try:
-			embed.description = self.wiki_commands.diff(member.guild, old, new)
+			embed.description = self.wiki_commands.diff(old, new)
 		except commands.UserInputError as exc:
 			embed.description = str(exc)
 		return embed
@@ -137,10 +148,10 @@ class WatchListsDatabase(commands.Cog):
 
 	@optional_connection
 	async def get_revision_and_previous(self, revision_id):
-		rows = await connection().fetch(self.queries.get_revision_and_previous(), revision_id)
-		if not rows: return rows
-		if len(rows) == 1: return None, AttrDict(rows[0])
-		return list(map(AttrDict, rows[::-1]))  # old to new
+		rows = list(map(AttrDict, await connection().fetch(self.queries.get_revision_and_previous(), revision_id)))
+		for row in rows: row.author = None
+		if len(rows) == 1: rows.append(None)
+		return rows[::-1]  # old to new
 
 def setup(bot):
 	bot.add_cog(WatchListsDatabase(bot))

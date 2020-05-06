@@ -49,6 +49,7 @@ class WikiDatabase(commands.Cog):
 	async def get_page_revisions(self, member, title):
 		await self.check_permissions(member, Permissions.view, title)
 		async for row in self.cursor(self.queries.get_page_revisions(), member.guild.id, title):
+			row.author = None
 			yield row
 
 	@optional_connection
@@ -63,6 +64,7 @@ class WikiDatabase(commands.Cog):
 		"""return an async iterator over recent (after cutoff) revisions for the given guild, sorted by time"""
 		await self.check_permissions(member, Permissions.view)
 		async for row in self.cursor(self.queries.get_recent_revisions(), member.guild.id, cutoff):
+			row.author = None
 			yield row
 
 	@optional_connection
@@ -109,6 +111,9 @@ class WikiDatabase(commands.Cog):
 
 		if len(results) != len(set(revision_ids)):
 			raise ValueError('one or more revision IDs not found')
+
+		for revision in results:
+			revision.author = None
 
 		return results
 
