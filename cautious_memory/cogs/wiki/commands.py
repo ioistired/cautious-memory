@@ -228,9 +228,12 @@ class Wiki(commands.Cog):
 		cutoff_delta = datetime.timedelta(weeks=2)
 		cutoff = datetime.datetime.utcnow() - cutoff_delta
 
-		entries = [
-			self.revision_summary(revision)
-			async for revision in self.db.get_recent_revisions(ctx.author, cutoff)]
+		entries = []
+		async for revision in self.db.get_recent_revisions(ctx.author, cutoff):
+			with contextlib.suppress(discord.NotFound):
+				revision.author = await utils.fetch_member(ctx.guild, revision.author_id)
+
+			entries.append(self.revision_summary(revision))
 
 		if not entries:
 			delta = absolute_natural_timedelta(cutoff_delta.total_seconds())
