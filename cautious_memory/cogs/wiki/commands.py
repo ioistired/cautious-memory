@@ -389,7 +389,7 @@ class Wiki(commands.Cog):
 		with contextlib.suppress(discord.NotFound):
 			old.author = await utils.fetch_member(ctx.guild, old.author_id)
 
-		with contextlib.suppres(discord.NotFound):
+		with contextlib.suppress(discord.NotFound):
 			new.author = await utils.fetch_member(ctx.guild, new.author_id)
 
 		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
