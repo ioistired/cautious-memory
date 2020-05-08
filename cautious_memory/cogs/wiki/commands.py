@@ -387,10 +387,10 @@ class Wiki(commands.Cog):
 			await self.db.check_permissions(ctx.author, Permissions.edit, new.current_title)
 
 		with contextlib.suppress(discord.NotFound):
-			old.author = await utils.fetch_member(guild, old.author_id)
+			old.author = await utils.fetch_member(ctx.guild, old.author_id)
 
 		with contextlib.suppres(discord.NotFound):
-			new.author = await utils.fetch_member(guild, new.author_id)
+			new.author = await utils.fetch_member(ctx.guild, new.author_id)
 
 		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
 
