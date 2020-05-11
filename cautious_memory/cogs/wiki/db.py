@@ -117,6 +117,10 @@ class WikiDatabase(commands.Cog):
 
 		return results
 
+	async def get_revision(self, guild_id, revision_id):
+		"""convenience wrapper for get_individual_revisions"""
+		return (await self.get_individual_revisions(guild_id, [revision_id]))[0]
+
 	async def page_count(self, guild_id, *, connection=None):
 		return await (connection or self.bot.pool).fetchval(self.queries.page_count(), guild_id)
 

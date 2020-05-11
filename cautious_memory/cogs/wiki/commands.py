@@ -348,16 +348,14 @@ class Wiki(commands.Cog):
 		await Pages(ctx, entries=list(map(self.revision_summary, revisions)), numbered=False).begin()
 
 	@commands.command(usage='<title> <revision ID>', ignore_extra=False)
-	async def revert(self, ctx, title: clean_content, revision_id):
+	async def revert(self, ctx, title: clean_content, revision_id: int):
 		"""Reverts a page to a previous revision ID.
 		To get the revision ID, you can use the history command.
 		"""
-		title, revision = arg.title, arg.revision
-
-		async with self.bot.pool.acquire() as conn, conn.transaction():
+		async with self.bot.pool.acquire() as conn, conn.transaction(isolation='serializable'):
 			connection.set(conn)
 			try:
-				revision, = await self.db.get_individual_revisions(ctx.guild.id, [revision])
+				revision = await self.db.get_revision(ctx.guild.id, revision_id)
 			except ValueError:
 				await ctx.send(f'Error: revision not found. Try using the {ctx.prefix}history command to find revisions.')
 				return
