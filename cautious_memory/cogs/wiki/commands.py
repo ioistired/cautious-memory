@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with Cautious Memory.  If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import contextlib
 import datetime
 import difflib
@@ -331,14 +332,20 @@ class Wiki(commands.Cog):
 				await ctx.send(f'“{page.alias}” is an alias. Try {ctx.prefix}{ctx.invoked_with} {page.target}.')
 				return
 
-			entries = [
-				self.revision_summary(revision)
-				async for revision in self.db.get_page_revisions(ctx.author, title)]
+			revisions = [x async for x in self.db.get_page_revisions(ctx.author, title)]
 
-		if not entries:
+		if not revisions:
 			raise errors.PageNotFoundError(title)
 
-		await Pages(ctx, entries=entries, numbered=False).begin()
+		async def set_author(revision):
+			revision.author = await utils.fetch_member(ctx.guild, revision.author_id)
+
+		await asyncio.gather(
+			*(asyncio.create_task(set_author(revision)) for revision in revisions),
+			return_exceptions=True,
+		)
+
+		await Pages(ctx, entries=list(map(self.revision_summary, revisions)), numbered=False).begin()
 
 	@commands.command(usage='<title> <revision ID>', ignore_extra=False)
 	async def revert(self, ctx, title: clean_content, revision_id):
