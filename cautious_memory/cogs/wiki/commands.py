@@ -403,7 +403,7 @@ class Wiki(commands.Cog):
 	def diff(cls, old, new):
 		# wew this was hard to get right
 		if new.prev_title != old.title or new.title != old.title:
-			return cls.renamed_revision_summary(guild, new, old_title=old.title)
+			return cls.renamed_revision_summary(new, old_title=old.title)
 
 		if old.page_id != new.page_id:
 			raise commands.UserInputError('You can only compare revisions of the same page.')
