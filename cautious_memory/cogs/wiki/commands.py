@@ -397,10 +397,10 @@ class Wiki(commands.Cog):
 		with contextlib.suppress(discord.NotFound):
 			new.author = await utils.fetch_member(ctx.guild, new.author_id)
 
-		await TextPages(ctx, self.diff(old, new), prefix='', suffix='').begin()
+		await TextPages(ctx, self.diff(ctx.guild, old, new), prefix='', suffix='').begin()
 
 	@classmethod
-	def diff(cls, old, new):
+	def diff(cls, guild, old, new):
 		# wew this was hard to get right
 		if new.prev_title != old.title or new.title != old.title:
 			return cls.renamed_revision_summary(guild, new, old_title=old.title)

@@ -100,7 +100,7 @@ class WatchListsDatabase(commands.Cog):
 		if new.author is not None:
 			embed.set_author(name=new.author.name, icon_url=new.author.avatar_url_as(static_format='png', size=64))
 		try:
-			embed.description = self.wiki_commands.diff(old, new)
+			embed.description = self.wiki_commands.diff(recipient.guild, old, new)
 		except commands.UserInputError as exc:
 			embed.description = str(exc)
 		return embed
