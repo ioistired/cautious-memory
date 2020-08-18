@@ -68,6 +68,13 @@ class Wiki(commands.Cog):
 			connection.set(conn)
 			page = await self.db.get_page(ctx.author, title)
 			await self.db.log_page_use(ctx.guild.id, title)
+		# it's kind of confusing to show a warning and an error, so only show the deprecation warning in the success
+		# case
+		if ctx.invoked_with in ctx.command.aliases:
+			await ctx.send(
+				f'⚠️ __{ctx.prefix}show__ and __{ctx.prefix}view__ will be removed in the future. '
+				f'Please use __{ctx.prefix}page__ instead.'
+			)
 		await ctx.send(page.content)
 
 	@commands.command(aliases=['readlink'])
