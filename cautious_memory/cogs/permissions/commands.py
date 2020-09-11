@@ -47,6 +47,7 @@ class WikiPermissions(commands.Cog, name='Wiki Permissions'):
 	• Create pages
 	• Rename pages
 	• Delete pages
+	• Manage bindings
 	• Manage permissions
 
 	Each page can also have "permission overrides", which override the permissions granted by a role.
