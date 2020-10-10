@@ -259,7 +259,7 @@ class PermissionsDatabase(commands.Cog):
 		if Permissions.manage_permissions in await self.permissions_for(member, title):
 			return True
 
-		raise errors.MissingPermissionsError(Permissions.manage_permissions)
+		raise errors.MissingPagePermissionsError(Permissions.manage_permissions)
 
 def setup(bot):
 	bot.add_cog(PermissionsDatabase(bot))
